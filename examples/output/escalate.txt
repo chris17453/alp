@@ -1,0 +1,6 @@
+sid        7532b7c396a585d40861432ced3ebfe3613abcc9ab756ba3f67215f8d3f6fab4
+comp       $PROCESS.INCREASE.FUTURE :ARG0 $AGENT :ARG1 $SIGN
+script     '\ue001\ue209\ue302\ue005\ue009'
+canonical  a36168c40001616d82c40209c403026172a201c4000502c40009  (26 B)
+reads      a process that is rising, in the future whose agent is an agent whose patient is a signal
+wrote examples/output/escalate.png

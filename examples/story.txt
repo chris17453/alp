@@ -1,0 +1,8 @@
+The team deployed a new release yesterday.
+Latency increased after the deploy.
+The customers reported errors in the eu region.
+We believe the database is the cause.
+If the load rises, the service will fail.
+The engineer must roll back the release now.
+The rollback fixed the problem.
+The system is healthy and the incident is over.

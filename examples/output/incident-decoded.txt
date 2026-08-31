@@ -1,60 +1,73 @@
 @2058c129 JOIN       by ops at 2026-08-31T14:20:00Z
-@f39fb9a8 ATTEST     by ops at 2026-08-31T14:20:00Z
-@2fa7177c AMEND      by ops at 2026-08-31T14:20:02Z
+@de2ea83a AMEND      by ops at 2026-08-31T14:20:02Z
   The checkout service is down now.
-@513d9067 ASSERT     by ops at 2026-08-31T14:20:03Z
-  The checkout service is down now.  =  true
-@f535275f AMEND      by ops at 2026-08-31T14:20:04Z
+@2af23031 ASSERT     by ops at 2026-08-31T14:20:03Z
+  The checkout service is down now.  [.='checkout']
+@02123f7a AMEND      by ops at 2026-08-31T14:20:04Z
   Latency is spiking in the eu region.
-@a45d3d93 ASSERT     by ops at 2026-08-31T14:20:05Z
-  Latency is spiking in the eu region.  =  true
-@65b03ded AMEND      by ops at 2026-08-31T14:20:06Z
+@fd4c6b43 ASSERT     by ops at 2026-08-31T14:20:05Z
+  Latency is spiking in the eu region.  [SCOPE='eu']
+@c8cdeaae AMEND      by ops at 2026-08-31T14:20:06Z
   Urgency is high and the deadline is tomorrow.
-@defd1285 ASSERT     by ops at 2026-08-31T14:20:07Z
-  Urgency is high and the deadline is tomorrow.  =  true
-@16628aa5 AMEND      by ops at 2026-08-31T14:20:08Z
+@18992852 ASSERT     by ops at 2026-08-31T14:20:07Z
+  Urgency is high and the deadline is tomorrow.
+@57542cdf AMEND      by ops at 2026-08-31T14:20:08Z
+  Urgency is high and the deadline is tomorrow.
+@045d74d5 ASSERT     by ops at 2026-08-31T14:20:09Z
+  Urgency is high and the deadline is tomorrow.
+@ffa9bb5b AMEND      by ops at 2026-08-31T14:20:10Z
   We suspect the deploy caused the outage.
-@10486850 ASSERT     by ops at 2026-08-31T14:20:09Z
-  We suspect the deploy caused the outage.  =  true
-@61c226d7 AMEND      by ops at 2026-08-31T14:20:10Z
+@af1292e8 ASSERT     by ops at 2026-08-31T14:20:11Z
+  We suspect the deploy caused the outage.
+@cf6d911c AMEND      by ops at 2026-08-31T14:20:12Z
   The rollback is permitted.
-@9c8500a6 ASSERT     by ops at 2026-08-31T14:20:11Z
-  The rollback is permitted.  =  true
-@8d8f11cf AMEND      by ops at 2026-08-31T14:20:12Z
+@ab320d10 ASSERT     by ops at 2026-08-31T14:20:13Z
+  The rollback is permitted.
+@8d208439 AMEND      by ops at 2026-08-31T14:20:14Z
   The incident was resolved and observed by the operator.
-@0c54d246 ASSERT     by ops at 2026-08-31T14:20:13Z
-  The incident was resolved and observed by the operator.  =  true
-@4639cf7f AMEND      by ops at 2026-08-31T14:20:14Z
+@ff4ed706 ASSERT     by ops at 2026-08-31T14:20:15Z
+  The incident was resolved and observed by the operator.
+@04299d69 AMEND      by ops at 2026-08-31T14:20:16Z
+  The incident was resolved and observed by the operator.
+@038e446c ASSERT     by ops at 2026-08-31T14:20:17Z
+  The incident was resolved and observed by the operator.
+@52e05638 AMEND      by ops at 2026-08-31T14:20:18Z
   Please confirm the customer impact is low.
-@b3e2edc8 ASSERT     by ops at 2026-08-31T14:20:15Z
-  Please confirm the customer impact is low.  =  true
-@0b6c1c61 AMEND      by ops at 2026-08-31T14:20:16Z
+@c4854bf8 ASSERT     by ops at 2026-08-31T14:20:19Z
+  Please confirm the customer impact is low.
+@4421c0b1 AMEND      by ops at 2026-08-31T14:20:20Z
   Zorblat frobnicates the widget.
-@8b6226c9 ASSERT     by ops at 2026-08-31T14:20:17Z
-  Zorblat frobnicates the widget.  =  true
-@cb12ca19 CHECKPOINT by ops at 2026-08-31T14:20:18Z
-  checkpoint: 9 symbols, digest 014058a6fce219aa
-a process that is negated (not holding), at present, extended in time — “checkout” [gloss: "The checkout service is down now."]
-  (gloss: The checkout service is down now.)
-a process that is negated (not holding), at present, extended in time — “checkout” [gloss: "The checkout service is down now."]
-a quantity that is rising, extended in time — “eu” [gloss: "Latency is spiking in the eu region."]
-  (gloss: Latency is spiking in the eu region.)
-a quantity that is rising, extended in time — “eu” [gloss: "Latency is spiking in the eu region."]
-a property that is high, in the future, instantaneous, required [gloss: "Urgency is high and the deadline is tomorrow."]
-  (gloss: Urgency is high and the deadline is tomorrow.)
-a property that is high, in the future, instantaneous, required [gloss: "Urgency is high and the deadline is tomorrow."]
-an event that is inferred, instantaneous, causing [gloss: "We suspect the deploy caused the outage."]
-  (gloss: We suspect the deploy caused the outage.)
-an event that is inferred, instantaneous, causing [gloss: "We suspect the deploy caused the outage."]
+@a058fc07 ASSERT     by ops at 2026-08-31T14:20:21Z
+  Zorblat frobnicates the widget.  [.='zorblat frobnicates widget']
+@01ae323f CHECKPOINT by ops at 2026-08-31T14:20:22Z
+  checkpoint: 11 symbols, digest d4f61b82c348163a
+$PROCESS.NEGATE.NOW.DURATIVE.BAD
+  = a process that is negated (not holding), at present, extended in time, bad [gloss: "The checkout service is down now."]
+a process that is negated (not holding), at present, extended in time, bad [gloss: "The checkout service is down now."]  [.='checkout']
+$QUANTITY.INCREASE.DURATIVE :SCOPE ($PLACE)
+  = a quantity that is rising, extended in time over (a place) [gloss: "Latency is spiking in the eu region."]
+a quantity that is rising, extended in time over (a place) [gloss: "Latency is spiking in the eu region."]  [SCOPE='eu']
+$PROPERTY.HIGH.PUNCTUAL.REQUIRED
+  = a property that is high, instantaneous, required [gloss: "Urgency is high and the deadline is tomorrow."]
+a property that is high, instantaneous, required [gloss: "Urgency is high and the deadline is tomorrow."]
+$MOMENT.BOUNDED.FUTURE.PUNCTUAL
+  = a moment that is bounded, in the future, instantaneous [gloss: "Urgency is high and the deadline is tomorrow."]
+a moment that is bounded, in the future, instantaneous [gloss: "Urgency is high and the deadline is tomorrow."]
+$RELATION.PAST.CAUSE.INFERRED :ARG0 ($EVENT.PUNCTUAL) :ARG1 ($STATE.NEGATE.BAD)
+  = a relation that is inferred, in the past, causing whose agent is (an event that is instantaneous) whose patient is (a state that is negated (not holding), bad) [gloss: "We suspect the deploy caused the outage."]
+a relation that is inferred, in the past, causing whose agent is (an event that is instantaneous) whose patient is (a state that is negated (not holding), bad) [gloss: "We suspect the deploy caused the outage."]
+$PROCESS.PERMITTED.PAST
+  = a process that is permitted, in the past [gloss: "The rollback is permitted."]
 a process that is permitted, in the past [gloss: "The rollback is permitted."]
-  (gloss: The rollback is permitted.)
-a process that is permitted, in the past [gloss: "The rollback is permitted."]
-an event that is observed, in the past, at present, ending, bad [gloss: "The incident was resolved and observed by the operator."]
-  (gloss: The incident was resolved and observed by the operator.)
-an event that is observed, in the past, at present, ending, bad [gloss: "The incident was resolved and observed by the operator."]
-an agent that is low, requested — “confirm” [gloss: "Please confirm the customer impact is low."]
-  (gloss: Please confirm the customer impact is low.)
-an agent that is low, requested — “confirm” [gloss: "Please confirm the customer impact is low."]
-a signal that is unknown — “Zorblat frobnicates the widget.” [gloss: "Zorblat frobnicates the widget."]
-  (gloss: Zorblat frobnicates the widget.)
-a signal that is unknown — “Zorblat frobnicates the widget.” [gloss: "Zorblat frobnicates the widget."]
+$EVENT.PAST.END.GOOD :ARG0 ($EVENT.NOW.BAD)
+  = an event that is in the past, ending, good whose agent is (an event that is at present, bad) [gloss: "The incident was resolved and observed by the operator."]
+an event that is in the past, ending, good whose agent is (an event that is at present, bad) [gloss: "The incident was resolved and observed by the operator."]
+$STATE.OBSERVED :ARG0 ($AGENT)
+  = a state that is observed whose agent is (an agent) [gloss: "The incident was resolved and observed by the operator."]
+a state that is observed whose agent is (an agent) [gloss: "The incident was resolved and observed by the operator."]
+$SIGN.KNOWN.ASSERT.REQUEST :ARG1 ($RELATION.LOW.CAUSE.HARM :SCOPE ($AGENT))
+  = a signal that is known, asserted, requested whose patient is (a relation that is low, causing, harmful over (an agent)) [gloss: "Please confirm the customer impact is low."]
+a signal that is known, asserted, requested whose patient is (a relation that is low, causing, harmful over (an agent)) [gloss: "Please confirm the customer impact is low."]
+$ENTITY
+  = a thing [gloss: "Zorblat frobnicates the widget."]
+a thing [gloss: "Zorblat frobnicates the widget."]  [.='zorblat frobnicates widget']

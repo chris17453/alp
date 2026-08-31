@@ -9,7 +9,8 @@ from alp.alpb import Pid, Ref, NonCanonical, REF_SID, REF_SID_FULL
 from alp.composition import Composition, CompositionError, parse, verify, SIDMismatch
 from alp.events import AttestLevel, Stream, new_stream_id, agent_sid, fold, toposort
 from alp.inventory import PRIMITIVES, ROLES, pid, by_class, CLASS_ONTOLOGICAL
-from alp.translate import Translator, stats
+from alp.translate import Translator, SimpleTranslator, stats
+from alp.lexicon import find_forks, similarity
 
 
 # -- ALP/B -------------------------------------------------------------------
@@ -70,7 +71,7 @@ def test_inventory_size():
 
 def test_reference_sids_match_rfc_appendix():
     """SIDs computed by the RFC's reference script (Appendix D) must agree."""
-    tr = Translator()
+    tr = SimpleTranslator()
     assert tr.translate("the checkout service is down now").composition.sid_hex(8) == "e839ae84"
     assert tr.translate("latency is spiking in the eu region").composition.sid_hex(8) == "19a85458"
     urgency = Composition.build("PROPERTY", "HIGH", "PUNCTUAL", "REQUIRED")
@@ -118,13 +119,47 @@ def test_script_sequence():
 
 # -- translator -------------------------------------------------------------------
 
-def test_translator_residue_and_stats():
-    tr = Translator()
+def test_simple_translator_residue_and_stats():
+    tr = SimpleTranslator()
     rs = tr.translate_text("The checkout service is down now. Zorp blib.")
     assert rs[0].composition.residue == "checkout"
     assert rs[1].composition.head == pid("SIGN")
     st = stats(rs)
     assert st.utterances == 2 and st.residue_tokens > 0
+
+
+def test_compositional_translator_builds_trees_and_binds_names():
+    tr = Translator()
+    (r,) = tr.translate("We suspect the deploy caused the outage.")
+    c = r.composition
+    assert c.head == pid("RELATION") and pid("CAUSE") in c.modifiers and pid("INFERRED") in c.modifiers
+    roles = dict(c.roles)
+    assert roles[ROLES["ARG0"]].head == pid("EVENT")          # the deploy
+    assert roles[ROLES["ARG1"]].head == pid("STATE")          # the outage
+    assert not c.residue_bearing() and r.names == {}
+    (r,) = tr.translate("Latency is spiking in the eu region.")
+    assert r.names == {"SCOPE": "eu"} and r.composition.residue is None     # English bound as data, not in the symbol
+    assert r.value == {"names": {"SCOPE": "eu"}}
+    rs = tr.translate("Urgency is high and the deadline is tomorrow.")
+    assert [x.composition.sid_hex(8) for x in rs] == ["037fac5d", "85168695"]
+    (r,) = tr.translate("If the error rate rises, page the on-call engineer.")
+    assert ROLES["CONDITION"] in dict(r.composition.roles)
+    (r,) = tr.translate("The database failed because the disk was full.")
+    assert r.composition.head == pid("RELATION") and r.names == {"ARG0": "disk"}
+    # residue mode reproduces the RFC's behaviour: English inside the symbol
+    (r,) = Translator(names="residue").translate("Latency is spiking in the eu region.")
+    assert r.composition.residue_bearing()
+
+
+def test_fork_detection():
+    a = Composition.build("PROPERTY", "HIGH", "PUNCTUAL", "REQUIRED")
+    b = Composition.build("PROPERTY", "HIGH", "PUNCTUAL", "NECESSARY")
+    c = Composition.build("MOMENT", "FUTURE")
+    assert similarity(a, b) > 0.7 > similarity(a, c)
+    forks = find_forks([a, b, c])
+    assert len(forks) == 1 and {forks[0].a.sid, forks[0].b.sid} == {a.sid, b.sid}
+    v2 = Composition.build("PROPERTY", "HIGH", "PUNCTUAL", "NECESSARY", supersedes=a.sid)
+    assert find_forks([a, v2]) == []                          # declared supersession is not a fork
 
 
 # -- events / stream ----------------------------------------------------------------
@@ -211,18 +246,29 @@ def test_alpt_parse_composition_forms():
 
 def test_render_png_and_pdf(tmp_path):
     comps = [Composition(p) for p in by_class(CLASS_ONTOLOGICAL)]
-    comps.append(Composition.build("RELATION", "CAUSE", "INFERRED",
+    comps.append(Composition.build("RELATION", "CAUSE", "INFERRED", "NEGATE",
                                    roles={"ARG0": Composition.build("EVENT", "PAST", residue="deploy"), "ARG1": "STATE"}))
     img = render.render_block(comps[-1])
-    assert img.width > 100 and img.height > 100
+    assert img.width > 60 and img.height > 100
     doc = render.doc_for_compositions(comps, title="t")
-    out = render.save_png(doc, str(tmp_path / "a.png"))
+    render.save_png(doc, str(tmp_path / "a.png"))
     assert (tmp_path / "a.png").stat().st_size > 1000
     pdf = render.render_pdf(doc)
     assert pdf.startswith(b"%PDF")
+    render.render_linear(comps).save(str(tmp_path / "lin.png"))
+    render.save_png(render.doc_for_inventory(), str(tmp_path / "key.png"), theme="light")
     s, _ = _demo_stream(16)
     render.save_pdf(render.doc_for_stream(s, alpt_text=alpt.dumps(s)), str(tmp_path / "s.pdf"))
     assert (tmp_path / "s.pdf").stat().st_size > 1000
+
+
+def test_every_glyph_draws_and_emits_svg():
+    from alp import glyphs
+    from PIL import Image, ImageDraw
+    d = ImageDraw.Draw(Image.new("RGB", (64, 64)))
+    for name in PRIMITIVES:
+        glyphs.draw_glyph(d, name, 4, 4, 56)
+        assert "<" in glyphs.svg_path(name)
 
 
 # -- CLI -------------------------------------------------------------------------------
@@ -251,6 +297,10 @@ def test_cli_pipeline(tmp_path):
     assert "Urgency is high." in r.stdout
     r = _alp("decode", str(alpb_path), "--readings")
     assert "a property that is high" in r.stdout
+    r = _alp("forks", str(alpb_path))
+    assert r.returncode == 0
+    r = _alp("key", "--png", str(tmp_path / "key.png"), "--svg", str(tmp_path / "key.svg"))
+    assert r.returncode == 0 and (tmp_path / "key.svg").exists()
     r = _alp("compose", "$PROPERTY.HIGH.PUNCTUAL.REQUIRED")
     assert "037fac5d" in r.stdout
     r = _alp("render", str(tmp_path / "x.alpt"), "--pdf", str(tmp_path / "audit.pdf"))

@@ -18,13 +18,13 @@ import sys
 from alp import Composition, Stream, alpt, render, new_stream_id
 from alp.events import AttestLevel, ErrorCode
 from alp.inventory import PRIMITIVES
-from alp.translate import Translator
+from alp.translate import SimpleTranslator
 
 CLOCK = 1788186000
 
 
 def build(width: int = 16) -> tuple[Stream, dict[bytes, str]]:
-    tr = Translator()
+    tr = SimpleTranslator()   # the RFC's own front end, so SIDs match Appendix D
     s = Stream(new_stream_id("rfc-alp-001 appendix d"), width)
     notes: dict[bytes, str] = {}
     inventory = list(PRIMITIVES.values())

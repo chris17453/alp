@@ -38,60 +38,30 @@ from typing import Any, Iterable, Sequence, Union
 from PIL import Image, ImageDraw, ImageFont
 
 from .alpb import Pid
+from . import glyphs
 from . import inventory as inv
 from .composition import Composition, Node
 
 # ---------------------------------------------------------------------------
-# Palette (class -> colour) and glyph tables
+# Themes and layout constants
 # ---------------------------------------------------------------------------
 
-CLASS_COLOR = {
-    inv.CLASS_ONTOLOGICAL: (34, 34, 40),
-    inv.CLASS_MODAL: (86, 61, 176),
-    inv.CLASS_SCALAR: (198, 108, 26),
-    inv.CLASS_TEMPORAL: (26, 128, 160),
-    inv.CLASS_CAUSAL: (176, 46, 60),
-    inv.CLASS_EPISTEMIC: (48, 132, 72),
-    inv.CLASS_ILLOCUTIONARY: (150, 70, 140),
-    inv.CLASS_VALENCE: (150, 130, 20),
-    inv.CLASS_STRUCTURAL: (120, 120, 120),
+THEMES = {
+    "dark":  {"bg": (16, 16, 18), "ink": (232, 232, 228), "dim": (110, 110, 106), "slot": (52, 52, 56), "text": (200, 200, 196)},
+    "light": {"bg": (255, 255, 255), "ink": (24, 24, 26), "dim": (150, 150, 146), "slot": (200, 200, 196), "text": (60, 60, 60)},
 }
 
-# Short marks for modifiers (2-4 chars) so a block stays legible when small.
-ABBREV = {
-    "AFFIRM": "AFF", "NEGATE": "NEG", "POSSIBLE": "POS", "NECESSARY": "NEC",
-    "DESIRED": "DES", "HYPOTHETICAL": "HYP", "PERMITTED": "PERM", "FORBIDDEN": "FORB",
-    "NONE": "0", "SOME": "SOME", "ALL": "ALL", "LOW": "LO", "MID": "MID", "HIGH": "HI",
-    "EXTREME": "MAX", "BOUNDED": "BND", "UNBOUNDED": "UNB", "INCREASE": "▲", "DECREASE": "▼",
-    "PAST": "PAST", "NOW": "NOW", "FUTURE": "FUT", "DURATIVE": "DUR", "PUNCTUAL": "PNCT",
-    "BEFORE": "BEF", "DURING": "DURG", "AFTER": "AFT", "REPEAT": "REP", "BEGIN": "BEG", "END": "END",
-    "CAUSE": "CAUS", "ENABLE": "ENAB", "PREVENT": "PREV", "CORRELATE": "CORR", "DEPEND": "DEP",
-    "TRIGGER": "TRIG",
-    "KNOWN": "KNWN", "BELIEVED": "BLV", "INFERRED": "INF", "UNKNOWN": "UNK", "CONTESTED": "CNT",
-    "OBSERVED": "OBS", "PREDICTED": "PRED",
-    "ASSERT": "ASRT", "REQUEST": "REQ", "COMMIT": "CMT", "QUERY": "QRY", "WARN": "WARN",
-    "REFUSE": "REF!", "PROPOSE": "PROP", "ACKNOWLEDGE": "ACK",
-    "GOOD": "GOOD", "BAD": "BAD", "REQUIRED": "REQD", "OPTIONAL": "OPT", "SAFE": "SAFE",
-    "HARM": "HARM", "COST": "COST", "BENEFIT": "BEN",
-    "ENTITY": "ENT", "PROCESS": "PROC", "PROPERTY": "PROP", "RELATION": "REL", "QUANTITY": "QTY",
-    "AGENT": "AGT", "STATE": "STAT", "PLACE": "PLC", "MOMENT": "MOM", "SIGN": "SIGN",
-    "EVENT": "EVT", "GROUP": "GRP",
-}
-
-# Head shapes: one per ontological primitive, distinguishable at a glance.
-HEAD_SHAPE = {
-    "ENTITY": "square", "PROCESS": "arrow", "PROPERTY": "diamond", "RELATION": "bowtie",
-    "QUANTITY": "bars", "AGENT": "pentagon", "STATE": "circle", "PLACE": "pin",
-    "MOMENT": "clock", "SIGN": "flag", "EVENT": "burst", "GROUP": "cluster",
-}
-
-# Where a modifier class attaches (§6.2).
+# Where a modifier class attaches (§6.2, as drawn in the reference sheet):
+#   above: modal, epistemic      left: causal, illocutionary
+#   right: scalar                lower-right: valence/deontic
+#   below: temporal              NEGATE crosses the head itself
 POSITION = {
     inv.CLASS_MODAL: "top", inv.CLASS_EPISTEMIC: "top",
-    inv.CLASS_CAUSAL: "left", inv.CLASS_SCALAR: "right",
-    inv.CLASS_TEMPORAL: "bottom", inv.CLASS_VALENCE: "bottom",
-    inv.CLASS_ILLOCUTIONARY: "corner",
+    inv.CLASS_CAUSAL: "left", inv.CLASS_ILLOCUTIONARY: "left",
+    inv.CLASS_SCALAR: "right", inv.CLASS_VALENCE: "lowright",
+    inv.CLASS_TEMPORAL: "bottom",
 }
+_ORDER = ["top", "left", "right", "lowright", "bottom"]
 
 _FONT_CANDIDATES = {
     "sans": ["DejaVuSans.ttf", "NotoSans-Regular.ttf", "NotoSans[wght].ttf", "LiberationSans-Regular.ttf", "Arial.ttf"],
@@ -103,7 +73,7 @@ _FONT_DIRS = [
     os.path.expanduser("~/.local/share/fonts"), "/Library/Fonts", "/System/Library/Fonts",
     "C:\\Windows\\Fonts",
 ]
-_font_cache: dict[tuple[str, int], ImageFont.FreeTypeFont | ImageFont.ImageFont] = {}
+_font_cache: dict[tuple[str, int], Any] = {}
 _font_path_cache: dict[str, str | None] = {}
 
 
@@ -146,241 +116,207 @@ def text_size(draw: ImageDraw.ImageDraw, s: str, f) -> tuple[int, int]:
 
 
 # ---------------------------------------------------------------------------
-# Block rendering
+# Block rendering — the script proper.  No text.  One ink.
 # ---------------------------------------------------------------------------
 
 @dataclass
 class BlockStyle:
-    size: int = 160            # head square side
-    mark_h: int = 22
-    pad: int = 10
-    bg: tuple = (255, 255, 255)
-    fg: tuple = (30, 30, 30)
-    show_residue: bool = True
-    show_caption: bool = True  # transliteration + SID below the block
+    head: int = 72               # head glyph cell, px
+    theme: str = "dark"
+    weight: float = 0.06         # stroke width as a fraction of glyph cell
+    frame: bool = True           # draw the rounded card around the block
+    pad: int = 14
+    caption: bool = False        # transliteration under the block (ASCII fallback, §6.5)
+
+    @property
+    def colors(self) -> dict:
+        return THEMES[self.theme]
 
 
-def _polygon(cx: float, cy: float, r: float, n: int, rot: float = -math.pi / 2) -> list[tuple[float, float]]:
-    return [(cx + r * math.cos(rot + 2 * math.pi * i / n), cy + r * math.sin(rot + 2 * math.pi * i / n)) for i in range(n)]
+def _mods_by_position(comp: Composition) -> tuple[dict[str, list[Pid]], list[Composition], bool]:
+    buckets: dict[str, list[Pid]] = {k: [] for k in _ORDER}
+    nested: list[Composition] = []
+    negate = False
+    for m in sorted(comp.modifiers, key=lambda n: (0, n.code) if isinstance(n, Pid) else (1, 0)):
+        if isinstance(m, Composition):
+            nested.append(m)
+        elif inv.name_of(m) == "NEGATE":
+            negate = True
+        else:
+            buckets[POSITION.get(m.cls, "left")].append(m)
+    return buckets, nested, negate
 
 
-def _draw_head(d: ImageDraw.ImageDraw, name: str, cx: float, cy: float, r: float, color) -> None:
-    shape = HEAD_SHAPE.get(name, "circle")
-    w = max(2, int(r / 9))
-    if shape == "square":
-        d.rectangle([cx - r, cy - r, cx + r, cy + r], outline=color, width=w)
-    elif shape == "circle":
-        d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=color, width=w)
-    elif shape == "diamond":
-        d.polygon(_polygon(cx, cy, r, 4), outline=color, width=w)
-    elif shape == "pentagon":
-        d.polygon(_polygon(cx, cy, r, 5), outline=color, width=w)
-    elif shape == "arrow":
-        pts = [(cx - r, cy - r * 0.5), (cx + r * 0.3, cy - r * 0.5), (cx + r * 0.3, cy - r),
-               (cx + r, cy), (cx + r * 0.3, cy + r), (cx + r * 0.3, cy + r * 0.5), (cx - r, cy + r * 0.5)]
-        d.polygon(pts, outline=color, width=w)
-    elif shape == "bowtie":
-        d.polygon([(cx - r, cy - r), (cx + r, cy + r), (cx + r, cy - r), (cx - r, cy + r)], outline=color, width=w)
-    elif shape == "bars":
-        for i, h in enumerate((0.4, 0.75, 1.0)):
-            x0 = cx - r + i * (2 * r / 3) + w
-            d.rectangle([x0, cy + r - 2 * r * h, x0 + 2 * r / 3 - 2 * w, cy + r], outline=color, width=w)
-    elif shape == "pin":
-        d.ellipse([cx - r * 0.7, cy - r, cx + r * 0.7, cy + r * 0.4], outline=color, width=w)
-        d.polygon([(cx - r * 0.45, cy + r * 0.1), (cx + r * 0.45, cy + r * 0.1), (cx, cy + r)], outline=color, width=w)
-    elif shape == "clock":
-        d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=color, width=w)
-        d.line([(cx, cy), (cx, cy - r * 0.6)], fill=color, width=w)
-        d.line([(cx, cy), (cx + r * 0.45, cy)], fill=color, width=w)
-    elif shape == "flag":
-        d.line([(cx - r * 0.7, cy - r), (cx - r * 0.7, cy + r)], fill=color, width=w)
-        d.polygon([(cx - r * 0.7, cy - r), (cx + r, cy - r * 0.5), (cx - r * 0.7, cy)], outline=color, width=w)
-    elif shape == "burst":
-        pts = []
-        for i in range(16):
-            rr = r if i % 2 == 0 else r * 0.55
-            a = -math.pi / 2 + 2 * math.pi * i / 16
-            pts.append((cx + rr * math.cos(a), cy + rr * math.sin(a)))
-        d.polygon(pts, outline=color, width=w)
-    elif shape == "cluster":
-        for dx, dy in ((-0.45, -0.35), (0.45, -0.35), (0, 0.45)):
-            d.ellipse([cx + dx * r - r * 0.45, cy + dy * r - r * 0.45, cx + dx * r + r * 0.45, cy + dy * r + r * 0.45],
-                      outline=color, width=w)
-
-
-def _mark(d: ImageDraw.ImageDraw, x: float, y: float, w: float, h: float, label: str, color, f) -> None:
-    d.rounded_rectangle([x, y, x + w, y + h], radius=h / 3, fill=color)
-    tw, th = text_size(d, label, f)
-    d.text((x + (w - tw) / 2, y + (h - th) / 2 - 1), label, font=f, fill=(255, 255, 255))
-
-
-def _node_label(n: Node) -> str:
-    if isinstance(n, Pid):
-        return "$" + inv.name_of(n)
-    if isinstance(n, Composition):
-        return n.transliterate(8)
-    return "#" + bytes(n).hex()[:8]
+def measure_block(comp: Composition, st: BlockStyle, depth: int = 0) -> tuple[int, int]:
+    return render_block(comp, st, depth).size
 
 
 def render_block(comp: Composition, style: BlockStyle | None = None, depth: int = 0) -> Image.Image:
-    """Render one composition as a script block (RGB image)."""
+    """Render one composition as a script block."""
     st = style or BlockStyle()
-    S = st.size if depth == 0 else max(56, int(st.size * 0.55 ** depth))
-    mark_h = st.mark_h if depth == 0 else max(14, int(st.mark_h * 0.75 ** depth))
-    f_mark = font("bold", max(9, int(mark_h * 0.55)))
-    f_head = font("bold", max(10, int(S * 0.16)))
-    f_cap = font("mono", max(9, int(st.mark_h * 0.6)))
-    f_role = font("sans", max(9, int(mark_h * 0.6)))
-    pad = st.pad
+    C = st.colors
+    H = st.head if depth == 0 else max(28, int(st.head * 0.62 ** depth))
+    m = max(10, int(H * 0.42))          # modifier mark cell
+    gap = max(3, int(H * 0.08))
+    buckets, nested, negate = _mods_by_position(comp)
 
-    # bucket modifiers by position
-    buckets: dict[str, list] = {"top": [], "left": [], "right": [], "bottom": [], "corner": [], "nested": []}
-    for m in sorted(comp.modifiers, key=lambda n: (0, n.code) if isinstance(n, Pid) else (1, 0)):
-        if isinstance(m, Pid):
-            buckets[POSITION.get(m.cls, "corner")].append(m)
-        else:
-            buckets["nested"].append(m)
-
-    # measure side columns
-    tmp = ImageDraw.Draw(Image.new("RGB", (1, 1)))
-    def mark_w(p: Pid) -> int:
-        return text_size(tmp, ABBREV.get(inv.name_of(p), inv.name_of(p)[:4]), f_mark)[0] + mark_h
-
-    side_w = max([mark_w(p) for p in buckets["left"] + buckets["right"]] + [0])
-    left_h = len(buckets["left"]) * (mark_h + 4)
-    right_h = len(buckets["right"]) * (mark_h + 4)
-    top_row = buckets["top"] + buckets["corner"]
-    top_w = sum(mark_w(p) + 4 for p in top_row)
-    bot_w = sum(mark_w(p) + 4 for p in buckets["bottom"])
-    core_w = max(S, top_w, bot_w) + 2 * (side_w + pad if side_w else 0)
-    core_h = S + 2 * (mark_h + 6)
-
-    # role stack + nested modifier compositions
-    sub_imgs: list[tuple[str, Image.Image | None, str]] = []
+    # role slots and nested modifier compositions rendered first (we need sizes)
+    subs: list[tuple[str, Image.Image | None, Any]] = []
     for code, node in comp.roles:
-        rname = inv.ROLE_NAMES[code]
         if isinstance(node, Composition):
-            sub_imgs.append((rname, render_block(node, st, depth + 1), ""))
+            subs.append(("role", render_block(node, BlockStyle(st.head, st.theme, st.weight, False, 6, False), depth + 1), node))
         else:
-            sub_imgs.append((rname, None, _node_label(node)))
-    for m in buckets["nested"]:
-        sub_imgs.append(("MOD", render_block(m, st, depth + 1), ""))
+            subs.append(("role", None, node))
+    for n in nested:
+        subs.append(("mod", render_block(n, BlockStyle(st.head, st.theme, st.weight, False, 6, False), depth + 1), n))
 
-    roles_h = 0
-    roles_w = 0
-    for rname, img, label in sub_imgs:
+    slot = int(m * 1.5)
+    top_w = len(buckets["top"]) * (m + gap)
+    bot_w = len(buckets["bottom"]) * (m + gap)
+    left_h = len(buckets["left"]) * (m + gap)
+    right_h = len(buckets["right"]) * (m + gap)
+    lr_h = len(buckets["lowright"]) * (m + gap)
+    side = m + gap if (buckets["left"] or buckets["right"] or buckets["lowright"]) else 0
+    core_w = max(H + 2 * side, top_w, bot_w)
+    core_h = H + (m + gap if buckets["top"] else 0) + (m + gap if buckets["bottom"] else 0)
+    core_h = max(core_h, left_h, right_h + lr_h)
+
+    stack_h = 0
+    stack_w = 0
+    for kind, img, node in subs:
         if img is not None:
-            roles_h += img.height + 6
-            roles_w = max(roles_w, img.width + text_size(tmp, rname, f_role)[0] + 12)
+            stack_h += img.height + gap
+            stack_w = max(stack_w, img.width + slot // 2)
         else:
-            roles_h += mark_h + 6
-            roles_w = max(roles_w, text_size(tmp, f"{rname} {label}", f_role)[0] + 12)
+            stack_h += slot + gap
+            stack_w = max(stack_w, slot)
+    residue_h = (m + gap) if comp.residue is not None else 0
 
-    residue_h = 0
-    residue_txt = ""
-    if comp.residue is not None and st.show_residue:
-        residue_txt = "~ " + comp.residue
-        residue_h = mark_h + 6
+    cap_lines: list[str] = []
+    f_cap = font("mono", max(9, int(H * 0.16)))
+    tmp = ImageDraw.Draw(Image.new("RGB", (1, 1)))
+    if st.caption and depth == 0:
+        cap_lines = [comp.transliterate(8)]
+    cap_h = sum(text_size(tmp, ln, f_cap)[1] + 4 for ln in cap_lines) + (gap if cap_lines else 0)
+    cap_w = max([text_size(tmp, ln, f_cap)[0] for ln in cap_lines] + [0])
 
-    caption_lines: list[str] = []
-    if st.show_caption and depth == 0:
-        caption_lines = [comp.transliterate(8), "#" + comp.sid_hex(16)]
-        if comp.gloss:
-            caption_lines.append("= " + comp.gloss)
-    cap_h = sum(text_size(tmp, ln, f_cap)[1] + 4 for ln in caption_lines)
-    cap_w = max([text_size(tmp, ln, f_cap)[0] for ln in caption_lines] + [0])
-
-    W = int(max(core_w, roles_w, cap_w, text_size(tmp, residue_txt, f_role)[0] + 16 if residue_txt else 0) + 2 * pad)
-    H = int(core_h + roles_h + residue_h + cap_h + 2 * pad + (6 if caption_lines else 0))
-    img = Image.new("RGB", (W, H), st.bg)
+    pad = st.pad
+    W = int(max(core_w, stack_w, cap_w) + 2 * pad)
+    Hh = int(core_h + (gap if subs else 0) + stack_h + residue_h + cap_h + 2 * pad)
+    img = Image.new("RGB", (W, Hh), C["bg"])
     d = ImageDraw.Draw(img)
+    if st.frame and depth == 0:
+        d.rounded_rectangle([0, 0, W - 1, Hh - 1], radius=int(pad * 0.8), outline=C["slot"], width=1)
 
     cx = W / 2
-    top_y = pad
-    cy = top_y + mark_h + 6 + S / 2
-    head_name = inv.name_of(comp.head)
-    color = CLASS_COLOR[inv.CLASS_ONTOLOGICAL]
+    y0 = pad
+    hy = y0 + (m + gap if buckets["top"] else 0)          # head top
+    # centre the core vertically if side columns are taller than the head
+    extra = core_h - (H + (m + gap if buckets["top"] else 0) + (m + gap if buckets["bottom"] else 0))
+    hy += extra / 2
+    hx = cx - H / 2
+    hcy = hy + H / 2
 
     # head
-    _draw_head(d, head_name, cx, cy, S / 2 - 4, color)
-    label = ABBREV.get(head_name, head_name[:4])
-    tw, th = text_size(d, label, f_head)
-    if HEAD_SHAPE.get(head_name) in ("bars", "bowtie", "pin", "cluster", "flag", "clock"):
-        # shapes without an empty centre: label sits in the lower part, boxed
-        ly = cy + S / 2 - th - 8
-        d.rectangle([cx - tw / 2 - 3, ly - 1, cx + tw / 2 + 3, ly + th + 4], fill=st.bg)
-        d.text((cx - tw / 2, ly), label, font=f_head, fill=color)
-    else:
-        d.text((cx - tw / 2, cy - th / 2 - 2), label, font=f_head, fill=color)
+    glyphs.draw_glyph(d, comp.head, hx, hy, H, C["ink"], st.weight)
+    if negate:  # the one mark that crosses the glyph
+        w = max(2, int(H * st.weight))
+        d.line([(hx + H * 0.08, hy + H * 0.92), (hx + H * 0.92, hy + H * 0.08)], fill=C["ink"], width=w)
 
-    # top marks (modal | epistemic, illocutionary at the corner)
-    x = cx - top_w / 2
-    for p in top_row:
-        w = mark_w(p)
-        _mark(d, x, top_y, w, mark_h, ABBREV.get(inv.name_of(p), inv.name_of(p)[:4]), CLASS_COLOR[p.cls], f_mark)
-        x += w + 4
-    if top_row:
-        d.line([(cx, top_y + mark_h), (cx, cy - S / 2 + 2)], fill=(160, 160, 160), width=1)
-
-    # bottom marks (temporal | valence)
-    by = cy + S / 2 + 6
-    x = cx - bot_w / 2
+    # marks
+    x = cx - top_w / 2 + gap / 2
+    for p in buckets["top"]:
+        glyphs.draw_glyph(d, p, x, hy - m - gap, m, C["ink"], st.weight)
+        x += m + gap
+    x = cx - bot_w / 2 + gap / 2
     for p in buckets["bottom"]:
-        w = mark_w(p)
-        _mark(d, x, by, w, mark_h, ABBREV.get(inv.name_of(p), inv.name_of(p)[:4]), CLASS_COLOR[p.cls], f_mark)
-        x += w + 4
-    if buckets["bottom"]:
-        d.line([(cx, cy + S / 2 - 2), (cx, by)], fill=(160, 160, 160), width=1)
-
-    # left (causal) and right (scalar)
-    y = cy - left_h / 2
+        glyphs.draw_glyph(d, p, x, hy + H + gap, m, C["ink"], st.weight)
+        x += m + gap
+    y = hcy - left_h / 2 + gap / 2
     for p in buckets["left"]:
-        w = mark_w(p)
-        _mark(d, cx - S / 2 - pad - w, y, w, mark_h, ABBREV.get(inv.name_of(p), inv.name_of(p)[:4]), CLASS_COLOR[p.cls], f_mark)
-        d.line([(cx - S / 2 - pad, y + mark_h / 2), (cx - S / 2 + 2, y + mark_h / 2)], fill=(160, 160, 160), width=1)
-        y += mark_h + 4
-    y = cy - right_h / 2
+        glyphs.draw_glyph(d, p, hx - m - gap, y, m, C["ink"], st.weight)
+        y += m + gap
+    y = hcy - (right_h + lr_h) / 2 + gap / 2
     for p in buckets["right"]:
-        w = mark_w(p)
-        _mark(d, cx + S / 2 + pad, y, w, mark_h, ABBREV.get(inv.name_of(p), inv.name_of(p)[:4]), CLASS_COLOR[p.cls], f_mark)
-        d.line([(cx + S / 2 - 2, y + mark_h / 2), (cx + S / 2 + pad, y + mark_h / 2)], fill=(160, 160, 160), width=1)
-        y += mark_h + 4
+        glyphs.draw_glyph(d, p, hx + H + gap, y, m, C["ink"], st.weight)
+        y += m + gap
+    for p in buckets["lowright"]:
+        glyphs.draw_glyph(d, p, hx + H + gap + m * 0.35, y, m, C["ink"], st.weight)
+        y += m + gap
 
-    # roles stack
-    y = top_y + core_h + 4
-    if sub_imgs:
-        d.line([(cx, by + (mark_h if buckets["bottom"] else 0)), (cx, y)], fill=(160, 160, 160), width=1)
-    for rname, sub, label in sub_imgs:
-        rw = text_size(d, rname, f_role)[0]
+    # role stack: ordered slots beneath the block
+    y = y0 + core_h + gap
+    for kind, sub, node in subs:
         if sub is not None:
-            x0 = cx - (sub.width + rw + 8) / 2
-            d.text((x0, y + 4), rname, font=f_role, fill=(90, 90, 90))
-            img.paste(sub, (int(x0 + rw + 8), int(y)))
-            d.rectangle([x0 + rw + 8, y, x0 + rw + 8 + sub.width - 1, y + sub.height - 1], outline=(200, 200, 200))
-            y += sub.height + 6
+            x = cx - sub.width / 2
+            img.paste(sub, (int(x), int(y)))
+            d.rounded_rectangle([x - 2, y - 2, x + sub.width + 1, y + sub.height + 1], radius=4,
+                                outline=C["slot"] if kind == "role" else C["dim"], width=1)
+            y += sub.height + gap
         else:
-            txt = f"{rname}  {label}"
-            tw = text_size(d, txt, f_role)[0]
-            col = CLASS_COLOR[inv.CLASS_STRUCTURAL]
-            d.rounded_rectangle([cx - tw / 2 - 6, y, cx + tw / 2 + 6, y + mark_h], radius=4, outline=col)
-            d.text((cx - tw / 2, y + 3), txt, font=f_role, fill=(60, 60, 60))
-            y += mark_h + 6
-
-    # residue ribbon
-    if residue_txt:
-        tw = text_size(d, residue_txt, f_role)[0]
-        col = (235, 225, 200)
-        d.rectangle([cx - tw / 2 - 8, y, cx + tw / 2 + 8, y + mark_h], fill=col, outline=(200, 180, 120))
-        d.text((cx - tw / 2, y + 3), residue_txt, font=f_role, fill=(90, 70, 20))
-        y += residue_h
-
-    # caption
-    if caption_lines:
-        y += 6
-        for ln in caption_lines:
+            x = cx - slot / 2
+            d.rounded_rectangle([x, y, x + slot, y + slot], radius=3, outline=C["slot"], width=1)
+            if isinstance(node, Pid):
+                glyphs.draw_glyph(d, node, x + slot * 0.15, y + slot * 0.15, slot * 0.7, C["ink"], st.weight)
+            else:  # SID reference
+                glyphs.draw_glyph(d, "REF", x + slot * 0.15, y + slot * 0.15, slot * 0.7, C["ink"], st.weight)
+            y += slot + gap
+    if comp.residue is not None:
+        glyphs.draw_glyph(d, "RESIDUE", cx - m / 2, y, m, C["dim"], st.weight)
+        y += m + gap
+    if cap_lines:
+        y += gap
+        for ln in cap_lines:
             tw, th = text_size(d, ln, f_cap)
-            d.text((cx - tw / 2, y), ln, font=f_cap, fill=(70, 70, 70))
+            d.text((cx - tw / 2, y), ln, font=f_cap, fill=C["text"])
             y += th + 4
+    return img
+
+
+def render_linear(comps: Sequence[Composition], cell: int = 36, theme: str = "dark", weight: float = 0.07) -> Image.Image:
+    """§6.4 rule 4 fallback: the canonical primitive sequence as a line of glyphs."""
+    C = THEMES[theme]
+    seqs = [c.primitives() for c in comps]
+    n = sum(len(s) for s in seqs) + max(0, len(seqs) - 1)
+    img = Image.new("RGB", (n * cell + cell, cell + 8), C["bg"])
+    d = ImageDraw.Draw(img)
+    x = cell / 2
+    for i, seq in enumerate(seqs):
+        for p in seq:
+            glyphs.draw_glyph(d, p, x + cell * 0.1, 4 + cell * 0.1, cell * 0.8, C["ink"], weight)
+            x += cell
+        if i < len(seqs) - 1:
+            d.line([(x + cell * 0.5, 8), (x + cell * 0.5, cell)], fill=C["dim"], width=1)
+            x += cell
+    return img
+
+
+def render_key(theme: str = "light", cell: int = 40) -> Image.Image:
+    """The glyph key — the one place English appears: glyph, name, sense, class position."""
+    C = THEMES[theme]
+    f = font("sans", 13)
+    f_b = font("bold", 13)
+    f_s = font("sans", 11)
+    rows = []
+    for cls in range(9):
+        rows.append(("hdr", cls))
+        for p in inv.by_class(cls):
+            rows.append(("row", p))
+    h = sum(cell if k == "row" else cell * 0.9 for k, _ in rows) + 40
+    img = Image.new("RGB", (620, int(h)), C["bg"])
+    d = ImageDraw.Draw(img)
+    y = 20
+    for k, v in rows:
+        if k == "hdr":
+            pos = {"top": "above head", "left": "left of head", "right": "right of head", "lowright": "lower right", "bottom": "below head"}.get(POSITION.get(v, ""), "head" if v == 0 else "structural")
+            d.text((20, y + 8), f"class 0x{v:02X}  {inv.CLASS_NAMES[v]}  —  {pos}", font=f_b, fill=C["ink"])
+            y += cell * 0.9
+        else:
+            glyphs.draw_glyph(d, v, 24, y + 4, cell - 8, C["ink"], 0.07)
+            d.text((80, y + 6), inv.name_of(v), font=f, fill=C["ink"])
+            d.text((200, y + 8), inv.SENSES[v], font=f_s, fill=C["text"])
+            d.text((520, y + 8), f"U+{0xE000 + v.code:04X}", font=f_s, fill=C["dim"])
+            y += cell
     return img
 
 
@@ -398,13 +334,18 @@ class Heading:
 class Para:
     text: str
     mono: bool = False
-    color: tuple = (30, 30, 30)
+    dim: bool = False
 
 
 @dataclass
 class Blocks:
-    comps: list[Composition]
+    comps: list
     style: BlockStyle = field(default_factory=BlockStyle)
+
+
+@dataclass
+class Img:
+    image: Image.Image
 
 
 @dataclass
@@ -417,7 +358,7 @@ class Spacer:
     height: int = 12
 
 
-Item = Union[Heading, Para, Blocks, Rule, Spacer]
+Item = Union[Heading, Para, Blocks, Img, Rule, Spacer]
 Doc = list
 
 
@@ -426,8 +367,7 @@ class PageSpec:
     width: int = 1240          # px, roughly A4 @ 150dpi
     height: int = 1754
     margin: int = 60
-    bg: tuple = (255, 255, 255)
-    scale: float = 1.0
+    theme: str = "dark"
 
 
 def _wrap(draw, text: str, f, max_w: int) -> list[str]:
@@ -451,6 +391,7 @@ def _grid(images: list[Image.Image], max_w: int, gap: int = 16, bg=(255, 255, 25
     rows: list[Image.Image] = []
     cur: list[Image.Image] = []
     cur_w = 0
+
     def flush():
         if not cur:
             return
@@ -462,6 +403,7 @@ def _grid(images: list[Image.Image], max_w: int, gap: int = 16, bg=(255, 255, 25
             row.paste(i, (x, 0))
             x += i.width + gap
         rows.append(row)
+
     for im in images:
         if cur and cur_w + gap + im.width > max_w:
             flush()
@@ -475,20 +417,21 @@ def _grid(images: list[Image.Image], max_w: int, gap: int = 16, bg=(255, 255, 25
 def render_png(doc: Doc, page: PageSpec | None = None) -> list[Image.Image]:
     """Lay the document out onto one or more pages."""
     ps = page or PageSpec()
+    C = THEMES[ps.theme]
     pages: list[Image.Image] = []
     inner_w = ps.width - 2 * ps.margin
     fonts = {1: font("bold", 30), 2: font("bold", 22), 3: font("bold", 17)}
     f_body = font("sans", 15)
     f_mono = font("mono", 13)
 
-    cur = Image.new("RGB", (ps.width, ps.height), ps.bg)
+    cur = Image.new("RGB", (ps.width, ps.height), C["bg"])
     d = ImageDraw.Draw(cur)
     y = ps.margin
 
     def new_page():
         nonlocal cur, d, y
         pages.append(cur)
-        cur = Image.new("RGB", (ps.width, ps.height), ps.bg)
+        cur = Image.new("RGB", (ps.width, ps.height), C["bg"])
         d = ImageDraw.Draw(cur)
         y = ps.margin
 
@@ -502,7 +445,7 @@ def render_png(doc: Doc, page: PageSpec | None = None) -> list[Image.Image]:
             for ln in _wrap(d, item.text, f, inner_w):
                 h = text_size(d, ln, f)[1] + 8
                 ensure(h)
-                d.text((ps.margin, y), ln, font=f, fill=(20, 20, 20))
+                d.text((ps.margin, y), ln, font=f, fill=C["ink"])
                 y += h
             y += 6
         elif isinstance(item, Para):
@@ -510,45 +453,51 @@ def render_png(doc: Doc, page: PageSpec | None = None) -> list[Image.Image]:
             for ln in _wrap(d, item.text, f, inner_w):
                 h = text_size(d, "Ag", f)[1] + 6
                 ensure(h)
-                d.text((ps.margin, y), ln, font=f, fill=item.color)
+                d.text((ps.margin, y), ln, font=f, fill=C["dim"] if item.dim else C["text"])
                 y += h
             y += 4
         elif isinstance(item, Blocks):
             imgs = [render_block(c, item.style) for c in item.comps]
-            for row in _grid(imgs, inner_w):
+            for row in _grid(imgs, inner_w, bg=C["bg"]):
                 if row.width > inner_w:
                     row = row.resize((inner_w, int(row.height * inner_w / row.width)))
                 ensure(row.height + 10)
                 cur.paste(row, (ps.margin, y))
                 y += row.height + 10
+        elif isinstance(item, Img):
+            im = item.image
+            if im.width > inner_w:
+                im = im.resize((inner_w, int(im.height * inner_w / im.width)))
+            ensure(im.height + 10)
+            cur.paste(im, (ps.margin, y))
+            y += im.height + 10
         elif isinstance(item, Rule):
             ensure(12)
-            d.line([(ps.margin, y + 5), (ps.width - ps.margin, y + 5)], fill=(190, 190, 190), width=1)
+            d.line([(ps.margin, y + 5), (ps.width - ps.margin, y + 5)], fill=C["slot"], width=1)
             y += 12
         elif isinstance(item, Spacer):
             y += item.height
     pages.append(cur)
-    # trim trailing whitespace of the last page if it's a single-page doc
     return pages
 
 
-def render_png_single(doc: Doc, width: int = 1240, margin: int = 60) -> Image.Image:
-    """One tall image sized to content (handy for a single composition)."""
-    ps = PageSpec(width=width, height=100000, margin=margin)
+def render_png_single(doc: Doc, width: int = 1240, margin: int = 60, theme: str = "dark") -> Image.Image:
+    """One tall image sized to content."""
+    ps = PageSpec(width=width, height=200000, margin=margin, theme=theme)
     page = render_png(doc, ps)[0]
-    # crop to content
-    gray = page.convert("L")
-    bbox = Image.eval(gray, lambda p: 255 - p).getbbox()
+    bg = THEMES[theme]["bg"]
+    diff = Image.eval(page.convert("L"), lambda v: 255 - v) if sum(bg) > 380 else page.convert("L")
+    bbox = diff.point(lambda v: 255 if v > 24 else 0).getbbox()
     bottom = (bbox[3] if bbox else margin) + margin
     return page.crop((0, 0, width, min(bottom, page.height)))
 
 
-def save_png(doc: Doc, path: str, single: bool = True, **kw) -> list[str]:
+def save_png(doc: Doc, path: str, single: bool = True, theme: str = "dark", **kw) -> list[str]:
     """Write PNG(s).  Multi-page output gets ``-1``, ``-2`` suffixes."""
     if single:
-        render_png_single(doc, **kw).save(path)
+        render_png_single(doc, theme=theme, **kw).save(path)
         return [path]
-    pages = render_png(doc)
+    pages = render_png(doc, PageSpec(theme=theme))
     if len(pages) == 1:
         pages[0].save(path)
         return [path]
@@ -561,12 +510,13 @@ def save_png(doc: Doc, path: str, single: bool = True, **kw) -> list[str]:
     return out
 
 
-def render_pdf(doc: Doc, title: str = "ALP") -> bytes:
+def render_pdf(doc: Doc, title: str = "ALP", theme: str = "light") -> bytes:
     """Render to PDF with reportlab: real text, embedded block images."""
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.utils import ImageReader
     from reportlab.pdfgen import canvas as rl_canvas
 
+    C = THEMES[theme]
     buf = io.BytesIO()
     W, H = A4
     margin = 42
@@ -576,9 +526,20 @@ def render_pdf(doc: Doc, title: str = "ALP") -> bytes:
     y = H - margin
     inner_w = W - 2 * margin
 
+    def paint_bg():
+        if theme != "light":
+            c.setFillColorRGB(*[v / 255 for v in C["bg"]])
+            c.rect(0, 0, W, H, stroke=0, fill=1)
+
+    def fill(rgb):
+        c.setFillColorRGB(*[v / 255 for v in rgb])
+
+    paint_bg()
+
     def newpage():
         nonlocal y
         c.showPage()
+        paint_bg()
         y = H - margin
 
     def ensure(h: float):
@@ -603,6 +564,7 @@ def render_pdf(doc: Doc, title: str = "ALP") -> bytes:
     for item in doc:
         if isinstance(item, Heading):
             size = {1: 18, 2: 14, 3: 12}.get(item.level, 12)
+            fill(C["ink"])
             for ln in wrap_pdf(item.text, "Helvetica-Bold", size):
                 ensure(size + 6)
                 c.setFont("Helvetica-Bold", size)
@@ -611,26 +573,34 @@ def render_pdf(doc: Doc, title: str = "ALP") -> bytes:
             y -= 4
         elif isinstance(item, Para):
             fname, size = ("Courier", 8.5) if item.mono else ("Helvetica", 10)
+            fill(C["dim"] if item.dim else C["text"])
             for ln in wrap_pdf(item.text, fname, size):
                 ensure(size + 4)
                 c.setFont(fname, size)
-                r, g, b = [v / 255 for v in item.color]
-                c.setFillColorRGB(r, g, b)
                 c.drawString(margin, y - size, ln)
                 y -= size + 4
-            c.setFillColorRGB(0, 0, 0)
             y -= 3
         elif isinstance(item, Blocks):
             imgs = [render_block(cm, item.style) for cm in item.comps]
-            for row in _grid(imgs, int(inner_w * 2)):
+            for row in _grid(imgs, int(inner_w * 2), bg=C["bg"]):
                 scale = min(0.5, inner_w / row.width)
                 w, h = row.width * scale, row.height * scale
                 ensure(h + 8)
                 c.drawImage(ImageReader(row), margin, y - h, width=w, height=h)
                 y -= h + 8
+        elif isinstance(item, Img):
+            im = item.image
+            scale = min(0.5, inner_w / im.width)
+            w, h = im.width * scale, im.height * scale
+            if h > H - 2 * margin:
+                scale = (H - 2 * margin) / im.height
+                w, h = im.width * scale, im.height * scale
+            ensure(h + 8)
+            c.drawImage(ImageReader(im), margin, y - h, width=w, height=h)
+            y -= h + 8
         elif isinstance(item, Rule):
             ensure(10)
-            c.setStrokeColorRGB(0.75, 0.75, 0.75)
+            c.setStrokeColorRGB(*[v / 255 for v in C["slot"]])
             c.line(margin, y - 4, W - margin, y - 4)
             y -= 10
         elif isinstance(item, Spacer):
@@ -639,9 +609,9 @@ def render_pdf(doc: Doc, title: str = "ALP") -> bytes:
     return buf.getvalue()
 
 
-def save_pdf(doc: Doc, path: str, title: str = "ALP") -> str:
+def save_pdf(doc: Doc, path: str, title: str = "ALP", theme: str = "light") -> str:
     with open(path, "wb") as fh:
-        fh.write(render_pdf(doc, title))
+        fh.write(render_pdf(doc, title, theme))
     return path
 
 
@@ -650,30 +620,37 @@ def save_pdf(doc: Doc, path: str, title: str = "ALP") -> str:
 # ---------------------------------------------------------------------------
 
 def doc_for_compositions(comps: Sequence[Composition], sources: Sequence[str] | None = None,
-                         title: str | None = None, style: BlockStyle | None = None) -> Doc:
-    """English (optional) + block + transliteration + reading for each composition."""
-    st = style or BlockStyle()
+                         title: str | None = None, style: BlockStyle | None = None,
+                         english: bool = False, theme: str = "dark", values: Sequence[Any] | None = None) -> Doc:
+    """Blocks with their ALP/T transliteration.  English (source + reading) only on request."""
+    st = style or BlockStyle(theme=theme)
     doc: Doc = []
     if title:
         doc.append(Heading(title, 1))
     for i, c in enumerate(comps):
-        if sources and i < len(sources) and sources[i]:
+        if english and sources and i < len(sources) and sources[i]:
             doc.append(Para(sources[i]))
         doc.append(Blocks([c], st))
-        doc.append(Para(f"!{c.sid_hex(16)}…  {c.transliterate(8)}", mono=True))
-        doc.append(Para("reads: " + c.reading(), color=(80, 80, 80)))
+        line = f"!{c.sid_hex(16)}…  {c.transliterate(8)}"
+        if values and i < len(values) and values[i] not in (None, True):
+            from .alpt import fmt_term
+            line += f"   ← {fmt_term(values[i])}"
+        doc.append(Para(line, mono=True))
+        if english:
+            doc.append(Para("reads: " + c.reading(), dim=True))
         if i < len(comps) - 1:
             doc.append(Rule())
     return doc
 
 
 def doc_for_stream(stream, title: str | None = None, alpt_text: str | None = None,
-                   style: BlockStyle | None = None, blocks: bool = True) -> Doc:
+                   style: BlockStyle | None = None, blocks: bool = True, theme: str = "dark",
+                   english: bool = False) -> Doc:
     """A stream rendered as an audit document: each event with its blocks."""
-    from .alpt import event_block
-    st = style or BlockStyle(size=120, mark_h=18)
+    from .alpt import event_block, fmt_term
+    st = style or BlockStyle(head=56, theme=theme)
     doc: Doc = [Heading(title or f"ALP stream {stream.stream_id.hex()[:16]}…", 1),
-                Para(f"{len(stream)} events · profile {stream.profile} · {len(stream.lexicon())} symbols", color=(90, 90, 90)),
+                Para(f"{len(stream)} events · profile {stream.profile} · {len(stream.lexicon())} symbols", dim=True),
                 Rule()]
     for e in stream.ordered():
         doc.append(Heading(f"@{e.eid_hex(16)}  {e.type.name}", 3))
@@ -681,11 +658,20 @@ def doc_for_stream(stream, title: str | None = None, alpt_text: str | None = Non
         comps = e.compositions()
         if blocks and comps:
             doc.append(Blocks(comps, st))
-        if e.type.name == "ASSERT":
+            if english:
+                for c in comps:
+                    doc.append(Para("reads: " + c.reading(), dim=True))
+        if e.type.name == "ASSERT" and blocks:
+            syms = []
+            vals = []
             for pair in e.payload:
                 sym = stream.state.symbol(pair[0].data)
                 if sym is not None:
-                    doc.append(Para(f"{sym.transliterate(8)}  ←  {pair[1]!r}", mono=True, color=(60, 60, 60)))
+                    syms.append(sym)
+                    vals.append(pair[1])
+            if syms:
+                doc.append(Blocks(syms, st))
+                doc.append(Para("   ".join(f"{s.transliterate(8)} ← {fmt_term(v)}" for s, v in zip(syms, vals)), mono=True, dim=True))
         doc.append(Spacer(6))
     if alpt_text:
         doc.append(Rule())
@@ -694,16 +680,8 @@ def doc_for_stream(stream, title: str | None = None, alpt_text: str | None = Non
     return doc
 
 
-def doc_for_inventory(style: BlockStyle | None = None) -> Doc:
-    """The primitive chart: one block per ontological head, one mark per modifier."""
-    st = style or BlockStyle(size=90, mark_h=16, show_caption=False)
-    doc: Doc = [Heading(f"ALP primitive inventory v{inv.INVENTORY_VERSION}", 1)]
-    heads = [Composition(p) for p in inv.by_class(inv.CLASS_ONTOLOGICAL)]
-    doc.append(Heading("class 0x00 — ontological heads", 2))
-    doc.append(Blocks(heads, st))
-    doc.append(Para("  ".join(f"${inv.name_of(p)}" for p in inv.by_class(inv.CLASS_ONTOLOGICAL)), mono=True))
-    for cls in range(1, 8):
-        doc.append(Heading(f"class 0x{cls:02X} — {inv.CLASS_NAMES[cls]} (position: {POSITION.get(cls, '-')})", 2))
-        doc.append(Blocks([Composition(inv.pid("ENTITY"), frozenset([p])) for p in inv.by_class(cls)], st))
-        doc.append(Para("  ".join(f"${inv.name_of(p)}={inv.SENSES[p]}" for p in inv.by_class(cls)), mono=True))
-    return doc
+def doc_for_inventory(theme: str = "light") -> Doc:
+    """The glyph key: every primitive's glyph beside its name and sense."""
+    return [Heading(f"ALP script — glyph key, inventory v{inv.INVENTORY_VERSION}", 1),
+            Para("The only place English appears.  Position around the head encodes class; the glyph encodes the member.", dim=True),
+            Img(render_key(theme))]

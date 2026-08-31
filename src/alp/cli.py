@@ -1,14 +1,15 @@
 """``alp`` command line interface.
 
-    alp translate "urgency is high and the deadline is tomorrow"
+    alp translate "we suspect the deploy caused the outage" --png out.png
     alp encode -f notes.txt -o notes.alpb --png notes.png --pdf notes.pdf
     alp decode notes.alpb
     alp export notes.alpb -o notes.alpt          # ALP/B -> ALP/T
     alp import notes.alpt -o notes.alpb          # ALP/T -> ALP/B
     alp render notes.alpt --pdf audit.pdf
     alp compose '$PROPERTY.HIGH.PUNCTUAL.REQUIRED' --png urgency.png
+    alp key --png key.png                        # the glyph key (the only English)
+    alp forks notes.alpt                         # synonymy-fork candidates (§12.6)
     alp verify notes.alpb
-    alp inventory [--png inventory.png] [--pdf inventory.pdf]
 """
 
 from __future__ import annotations
@@ -29,7 +30,8 @@ from .events import (
     AttestLevel, EventType, Stream, StreamError, agent_sid, new_stream_id,
     PROFILE_BY_NAME, PROFILE_NAMES,
 )
-from .translate import Translator, split_sentences, stats
+from .lexicon import find_forks
+from .translate import Translator, SimpleTranslator, split_sentences, stats
 
 DEFAULT_LEXICON = Path(os.environ.get("ALP_LEXICON", Path.home() / ".local" / "share" / "alp" / "lexicon.alpt"))
 
@@ -39,7 +41,6 @@ DEFAULT_LEXICON = Path(os.environ.get("ALP_LEXICON", Path.home() / ".local" / "s
 # ---------------------------------------------------------------------------
 
 def _read_text(args) -> str:
-    """Text from positional args, -f FILE, or stdin."""
     if getattr(args, "file", None):
         if args.file == "-":
             return sys.stdin.read()
@@ -64,8 +65,13 @@ def _profile(name: str) -> int:
     raise argparse.ArgumentTypeError(f"unknown profile {name!r} (SID-256|SID-128|SID-96|SID-64)")
 
 
+def _translator(args) -> Translator | SimpleTranslator:
+    if getattr(args, "simple", False):
+        return SimpleTranslator(keep_gloss=not args.no_gloss)
+    return Translator(names=args.names, keep_gloss=not args.no_gloss)
+
+
 def _load_stream(path: str, profile: int | None = None) -> tuple[Stream, str | None]:
-    """Load ALP/B or ALP/T by sniffing content.  Returns (stream, alpt_text|None)."""
     data = sys.stdin.buffer.read() if path == "-" else Path(path).read_bytes()
     if data.lstrip().startswith(b"%alp/t"):
         text = data.decode("utf-8")
@@ -98,12 +104,10 @@ def _out(path: str | None, data: bytes | str) -> None:
 
 def _build_stream(translations, author: str, profile: int, stream_seed: str | None,
                   clock: int | None, checkpoint: bool, values: bool) -> Stream:
-    """English -> stream: JOIN, one AMEND per utterance, ASSERT binding the source text."""
+    """English -> stream: JOIN, AMEND each new symbol, ASSERT it with its bound data."""
     s = Stream(new_stream_id(stream_seed), profile)
     t = int(time.time()) if clock is None else clock
     s.join(author, competence=list(inv.PRIMITIVES.values()), timestamp=t)
-    s.attest(author, [(p, AttestLevel.DEMONSTRATED) for p in inv.by_class(inv.CLASS_ONTOLOGICAL)], timestamp=t)
-    comps = [tr.composition for tr in translations]
     seen: set[bytes] = set()
     for i, tr in enumerate(translations, 1):
         c = tr.composition
@@ -111,30 +115,49 @@ def _build_stream(translations, author: str, profile: int, stream_seed: str | No
             s.amend(author, [c], timestamp=t + i * 2)
             seen.add(c.sid)
         if values:
-            s.assert_(author, [(c, True)], timestamp=t + i * 2 + 1)
+            s.assert_(author, [(c, getattr(tr, "value", True))], timestamp=t + i * 2 + 1)
     if checkpoint:
         s.checkpoint(author, timestamp=t + len(translations) * 2 + 2)
     return s
 
 
-def _emit_images(doc, png: str | None, pdf: str | None, title: str) -> list[str]:
+def _emit_images(doc, args, title: str) -> list[str]:
     written = []
-    if png:
-        written += render.save_png(doc, png)
-    if pdf:
-        written.append(render.save_pdf(doc, pdf, title=title))
+    if getattr(args, "png", None):
+        written += render.save_png(doc, args.png, theme=_theme(args))
+    if getattr(args, "pdf", None):
+        written.append(render.save_pdf(doc, args.pdf, title=title, theme=("light" if args.theme == "auto" else args.theme)))
     return written
+
+
+def _theme(args) -> str:
+    return "dark" if args.theme == "auto" else args.theme
 
 
 # ---------------------------------------------------------------------------
 # commands
 # ---------------------------------------------------------------------------
 
+def _print_translations(results, args) -> None:
+    width = args.width
+    for r in results:
+        c = r.composition
+        line = f"{c.sid_hex(width)}  {c.transliterate(8)}"
+        print(line)
+        if r.names:
+            print(f"{' ' * width}  bound:   " + "  ".join(f"{k}={v!r}" for k, v in r.names.items()))
+        if r.unconsumed:
+            print(f"{' ' * width}  residue: {' '.join(r.unconsumed)}")
+        if args.verbose:
+            print(f"{' ' * width}  source:  {r.source}")
+            print(f"{' ' * width}  reads:   {c.reading()}")
+            print(f"{' ' * width}  script:  {c.script()!r}")
+
+
 def cmd_translate(args) -> int:
     text = _read_text(args)
-    tr = Translator(keep_residue=not args.no_residue, keep_gloss=not args.no_gloss)
-    results = tr.translate_text(text) if not args.one else [tr.translate(text.strip())]
-    width = args.width
+    tr = _translator(args)
+    results = tr.translate_text(text)
     if args.json:
         out = []
         for r in results:
@@ -142,26 +165,20 @@ def cmd_translate(args) -> int:
             out.append({
                 "source": r.source, "sid": c.sid_hex(), "composition": c.transliterate(),
                 "script": c.script(), "reading": c.reading(), "residue": c.residue,
-                "unconsumed": r.unconsumed, "canonical_hex": c.canonical().hex(),
+                "names": r.names, "unconsumed": r.unconsumed, "canonical_hex": c.canonical().hex(),
             })
         print(json.dumps(out, indent=2, ensure_ascii=False))
     else:
-        for r in results:
-            c = r.composition
-            print(f"{c.sid_hex(width)}  {c.transliterate(8)}")
-            if args.verbose:
-                print(f"{' ' * width}  source:  {r.source}")
-                print(f"{' ' * width}  reads:   {c.reading()}")
-                print(f"{' ' * width}  script:  {c.script()!r}")
-            if r.unconsumed:
-                print(f"{' ' * width}  residue: {' '.join(r.unconsumed)}")
+        _print_translations(results, args)
     if args.stats:
         print()
         print(stats(results).summary())
     if args.png or args.pdf:
+        title = args.title or "ALP"
         doc = render.doc_for_compositions([r.composition for r in results], [r.source for r in results],
-                                          title=args.title or "ALP translation")
-        for p in _emit_images(doc, args.png, args.pdf, args.title or "ALP translation"):
+                                          title=title, english=args.english, theme=_theme(args),
+                                          values=[getattr(r, "value", True) for r in results])
+        for p in _emit_images(doc, args, title):
             print(f"wrote {p}", file=sys.stderr)
     if args.lexicon:
         lex = {c.sid: c for c in _load_lexicon(args.lexicon)}
@@ -173,7 +190,7 @@ def cmd_translate(args) -> int:
 
 def cmd_encode(args) -> int:
     text = _read_text(args)
-    tr = Translator(keep_residue=not args.no_residue, keep_gloss=not args.no_gloss)
+    tr = _translator(args)
     results = tr.translate_text(text)
     if not results:
         raise SystemExit("error: no utterances found")
@@ -190,41 +207,52 @@ def cmd_encode(args) -> int:
         print(f"english {eng} B  ->  ALP/B {len(s.to_bytes())} B ({s.profile}, {len(s)} events)  "
               f"ALP/T {len(alpt.dumps(s).encode())} B", file=sys.stderr)
     if args.png or args.pdf:
-        title = args.title or "ALP encode"
-        doc = render.doc_for_compositions([r.composition for r in results], [r.source for r in results], title=title)
+        title = args.title or "ALP"
         if args.audit:
-            doc = render.doc_for_stream(s, title=title, alpt_text=alpt.dumps(s))
-        for p in _emit_images(doc, args.png, args.pdf, title):
+            doc = render.doc_for_stream(s, title=title, alpt_text=alpt.dumps(s), theme=_theme(args), english=args.english)
+        else:
+            doc = render.doc_for_compositions([r.composition for r in results], [r.source for r in results],
+                                              title=title, english=args.english, theme=_theme(args),
+                                              values=[getattr(r, "value", True) for r in results])
+        for p in _emit_images(doc, args, title):
             print(f"wrote {p}", file=sys.stderr)
     return 0
+
+
+def _describe_value(v: Any) -> str:
+    if v is True:
+        return ""
+    if isinstance(v, dict) and "names" in v:
+        return "  [" + ", ".join(f"{k}={n!r}" for k, n in v["names"].items()) + "]"
+    return "  =  " + alpt.fmt_term(v)
 
 
 def cmd_decode(args) -> int:
     s, _ = _load_stream(args.input, args.profile)
     lex = s.state.lexicon
     label = s.state.label
+    ind = "  " if args.events else ""
     for e in s.ordered():
         who = s.author_name(e.author) or "#" + e.author.hex()[:8]
         if args.events:
             print(f"@{e.eid_hex(8)} {e.type.name:<10} by {who} at {e.iso_time()}")
         if e.type in (EventType.AMEND, EventType.GROUND):
             for c in e.compositions():
-                line = c.gloss if (c.gloss and not args.readings) else c.reading()
-                print(f"{'  ' if args.events else ''}{line}")
-                if args.readings and c.gloss:
-                    print(f"{'  ' if args.events else ''}  (gloss: {c.gloss})")
+                if args.readings or not c.gloss:
+                    print(f"{ind}{c.transliterate(8)}")
+                    print(f"{ind}  = {c.reading()}")
+                else:
+                    print(f"{ind}{c.gloss}")
         elif e.type == EventType.ASSERT:
             for pair in e.payload:
                 sym = s.state.symbol(pair[0].data)
                 if sym is None:
                     desc = f"#{pair[0].hex[:8]} (unknown symbol)"
+                elif args.readings or not sym.gloss:
+                    desc = sym.reading()
                 else:
-                    desc = sym.gloss if (sym.gloss and not args.readings) else sym.reading()
-                v = pair[1]
-                if v is True and not args.events:
-                    print(desc)
-                else:
-                    print(f"{'  ' if args.events else ''}{desc}  =  {alpt.fmt_term(v)}")
+                    desc = sym.gloss
+                print(f"{ind}{desc}{_describe_value(pair[1])}")
         elif args.events:
             if e.type == EventType.REGROUND:
                 print(f"  reground {label(e.payload['subject'].data) or e.payload['subject'].hex[:8]}: {e.payload.get('reading')!r}")
@@ -263,7 +291,6 @@ def cmd_verify(args) -> int:
         print(f"FAIL {args.input}: {e}")
         return 1
     problems = s.verify()
-    # round-trip check: ALP/T -> ALP/B -> ALP/T must be stable, and vice versa
     txt = alpt.dumps(s)
     try:
         again = alpt.loads(txt).stream
@@ -279,37 +306,43 @@ def cmd_verify(args) -> int:
 
 
 def cmd_render(args) -> int:
-    title = args.title
-    if args.input and Path(args.input).exists():
-        raw = Path(args.input).read_bytes()
-        if raw.lstrip().startswith(b"%alp/t") or not args.english:
+    title = args.title or "ALP"
+    theme = _theme(args)
+    doc = None
+    src = args.input
+    if src and Path(src).exists():
+        raw = Path(src).read_bytes()
+        if not args.english_input:
             try:
-                s, text = _load_stream(args.input, args.profile)
-                doc = render.doc_for_stream(s, title=title, alpt_text=text or alpt.dumps(s), blocks=not args.no_blocks)
-                title = title or f"ALP stream {s.stream_id.hex()[:16]}"
-            except Exception as e:  # noqa: BLE001
+                s, text = _load_stream(src, args.profile)
+                doc = render.doc_for_stream(s, title=args.title, alpt_text=text or alpt.dumps(s),
+                                            blocks=not args.no_blocks, theme=theme, english=args.english)
+            except Exception:  # noqa: BLE001
                 if raw.lstrip().startswith(b"%alp/t"):
                     raise
-                # not a stream: treat as English text
-                s = None
-                doc = None
-        else:
-            doc = None
         if doc is None:
             text = raw.decode("utf-8")
-            results = Translator().translate_text(text)
-            doc = render.doc_for_compositions([r.composition for r in results], [r.source for r in results], title=title)
+            results = _translator(args).translate_text(text)
+            doc = render.doc_for_compositions([r.composition for r in results], [r.source for r in results],
+                                              title=args.title, english=args.english, theme=theme,
+                                              values=[getattr(r, "value", True) for r in results])
     else:
-        text = _read_text(args) if not args.input else args.input
+        text = " ".join(([src] if src else []) + list(args.text or [])) or _read_text(args)
         if text.lstrip().startswith(("$", "!")):
             c = alpt.parse_composition(text)
-            doc = render.doc_for_compositions([c], title=title)
+            doc = render.doc_for_compositions([c], title=args.title, english=args.english, theme=theme)
         else:
-            results = Translator().translate_text(text)
-            doc = render.doc_for_compositions([r.composition for r in results], [r.source for r in results], title=title)
-    if not (args.png or args.pdf):
+            results = _translator(args).translate_text(text)
+            doc = render.doc_for_compositions([r.composition for r in results], [r.source for r in results],
+                                              title=args.title, english=args.english, theme=theme,
+                                              values=[getattr(r, "value", True) for r in results])
+    if args.linear:
+        comps = [c for item in doc if isinstance(item, render.Blocks) for c in item.comps]
+        render.render_linear(comps, theme=theme).save(args.linear)
+        print(f"wrote {args.linear}")
+    if not (args.png or args.pdf or args.linear):
         args.png = "alp.png"
-    for p in _emit_images(doc, args.png, args.pdf, title or "ALP"):
+    for p in _emit_images(doc, args, title):
         print(f"wrote {p}")
     return 0
 
@@ -325,7 +358,7 @@ def cmd_compose(args) -> int:
     print(f"reads      {c.reading()}")
     if c.residue_bearing():
         print("note       residue-bearing: not fully derivable from the inventory (§5.5)")
-    for p in _emit_images(render.doc_for_compositions([c], title=args.title), args.png, args.pdf, args.title or "ALP"):
+    for p in _emit_images(render.doc_for_compositions([c], title=args.title, english=args.english, theme=_theme(args)), args, args.title or "ALP"):
         print(f"wrote {p}")
     return 0
 
@@ -341,8 +374,44 @@ def cmd_inventory(args) -> int:
         }, indent=2))
     else:
         print(inv.inventory_table())
-    for p in _emit_images(render.doc_for_inventory(), args.png, args.pdf, "ALP primitive inventory"):
-        print(f"wrote {p}")
+    if args.png or args.pdf:
+        return cmd_key(args)
+    return 0
+
+
+def cmd_key(args) -> int:
+    theme = "light" if args.theme == "auto" else args.theme
+    doc = render.doc_for_inventory(theme)
+    if args.svg:
+        from .glyphs import svg_path
+        cells = []
+        for i, (name, p) in enumerate(inv.PRIMITIVES.items()):
+            x, y = (i % 12) * 60, (i // 12) * 60
+            cells.append(f'<g transform="translate({x},{y})">{svg_path(p, 50)}</g>')
+        svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="720" height="{((len(cells) + 11) // 12) * 60}" style="color:#eee;background:#111">' + "".join(cells) + "</svg>"
+        Path(args.svg).write_text(svg)
+        print(f"wrote {args.svg}")
+    if not (args.png or args.pdf or args.svg):
+        args.png = "alp-key.png"
+    if args.png:
+        render.save_png(doc, args.png, theme=theme)
+        print(f"wrote {args.png}")
+    if args.pdf:
+        render.save_pdf(doc, args.pdf, title="ALP glyph key", theme=theme)
+        print(f"wrote {args.pdf}")
+    return 0
+
+
+def cmd_forks(args) -> int:
+    if Path(args.input).exists() and not args.input.endswith(".txt"):
+        s, _ = _load_stream(args.input)
+        comps = list(s.lexicon().values())
+    else:
+        comps = _load_lexicon(Path(args.input))
+    forks = find_forks(comps, args.threshold)
+    for f in forks:
+        print(f.describe())
+    print(f"{len(forks)} candidate fork(s) among {len(comps)} symbols (threshold {args.threshold})", file=sys.stderr)
     return 0
 
 
@@ -365,6 +434,9 @@ def cmd_lexicon(args) -> int:
         print(f"{len(lex)} symbols", file=sys.stderr)
     elif args.action == "export":
         _out(args.out, alpt.dumps_symbols(comps))
+    elif args.action == "forks":
+        for f in find_forks(comps):
+            print(f.describe())
     return 0
 
 
@@ -381,6 +453,7 @@ def cmd_stats(args) -> int:
     print(f"ALP/B bytes    {len(s.to_bytes())}")
     print(f"ALP/T bytes    {len(alpt.dumps(s).encode())}")
     print(f"state digest   {s.state.digest().hex()}")
+    print(f"fork candidates {len(find_forks(lex.values()))}")
     return 0
 
 
@@ -397,18 +470,24 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("text", nargs="*", help="English text (or use -f / stdin)")
         sp.add_argument("-f", "--file", help="read English from FILE ('-' = stdin)")
 
+    def translator_opts(sp):
+        sp.add_argument("--names", choices=["bind", "residue", "drop"], default="bind",
+                        help="what to do with names/unknown words: bind as ASSERT data (default), RFC residue, or drop")
+        sp.add_argument("--simple", action="store_true", help="use the RFC Appendix E one-head translator")
+        sp.add_argument("--no-gloss", action="store_true", help="do not attach the source sentence as gloss")
+
     def image_outputs(sp):
         sp.add_argument("--png", help="write a PNG image")
         sp.add_argument("--pdf", help="write a PDF document")
         sp.add_argument("--title", help="document title")
+        sp.add_argument("--theme", choices=["auto", "dark", "light"], default="auto", help="auto = dark PNG, light PDF")
+        sp.add_argument("--english", action="store_true", help="include English source/readings in images (off by default)")
 
     sp = sub.add_parser("translate", help="English -> compositions (no stream)")
     text_inputs(sp)
-    sp.add_argument("--one", action="store_true", help="treat all input as a single utterance")
+    translator_opts(sp)
     sp.add_argument("--width", type=int, default=8, help="hex digits of SID to display")
-    sp.add_argument("--no-residue", action="store_true", help="drop untranslatable text instead of keeping it")
-    sp.add_argument("--no-gloss", action="store_true", help="do not attach the source text as gloss")
-    sp.add_argument("--stats", action="store_true", help="report residue rate")
+    sp.add_argument("--stats", action="store_true", help="report the English-leakage metric")
     sp.add_argument("--json", action="store_true")
     sp.add_argument("-v", "--verbose", action="store_true")
     sp.add_argument("--lexicon", type=Path, nargs="?", const=DEFAULT_LEXICON, help="also record symbols in a lexicon file")
@@ -417,6 +496,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("encode", help="English -> ALP stream (ALP/B, or ALP/T with --text)")
     text_inputs(sp)
+    translator_opts(sp)
     sp.add_argument("-o", "--out", help="output file (default stdout; .alpt extension implies --text)")
     sp.add_argument("--text", action="store_true", help="emit ALP/T instead of ALP/B")
     sp.add_argument("--author", default="a000", help="author agent name (SID = $AGENT ~\"name\")")
@@ -425,9 +505,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--clock", type=int, help="fixed start timestamp (unix seconds) for reproducible output")
     sp.add_argument("--no-checkpoint", action="store_true")
     sp.add_argument("--no-assert", action="store_true", help="only AMEND symbols, do not ASSERT them")
-    sp.add_argument("--no-residue", action="store_true")
-    sp.add_argument("--no-gloss", action="store_true")
-    sp.add_argument("--stats", action="store_true", help="print size and residue statistics to stderr")
+    sp.add_argument("--stats", action="store_true", help="print size and leakage statistics to stderr")
     sp.add_argument("--audit", action="store_true", help="image/PDF shows the whole stream, not just the symbols")
     image_outputs(sp)
     sp.set_defaults(func=cmd_encode)
@@ -436,7 +514,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("input", help="ALP/B or ALP/T file ('-' = stdin)")
     sp.add_argument("--profile", type=_profile, help="profile of a binary stream (sniffed if omitted)")
     sp.add_argument("--events", action="store_true", help="show every event, not just content")
-    sp.add_argument("--readings", action="store_true", help="prefer generated readings over stored glosses")
+    sp.add_argument("--readings", action="store_true", help="generate readings from primitives instead of stored glosses")
     sp.add_argument("--stats", action="store_true")
     sp.set_defaults(func=cmd_decode)
 
@@ -459,13 +537,15 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--profile", type=_profile)
     sp.set_defaults(func=cmd_verify)
 
-    sp = sub.add_parser("render", help="make images: English, a composition, or a stream -> PNG/PDF")
+    sp = sub.add_parser("render", help="images: English, a $COMPOSITION, or a stream -> PNG/PDF")
     sp.add_argument("input", nargs="?", help="file (English, .alpb, .alpt) or inline text / $COMPOSITION")
-    sp.add_argument("-f", "--file")
     sp.add_argument("text", nargs="*")
+    sp.add_argument("-f", "--file")
+    translator_opts(sp)
     sp.add_argument("--profile", type=_profile)
-    sp.add_argument("--english", action="store_true", help="force: treat the file as English text")
+    sp.add_argument("--english-input", action="store_true", help="force: treat the file as English text")
     sp.add_argument("--no-blocks", action="store_true", help="stream audit without script blocks")
+    sp.add_argument("--linear", help="also write the §6.4 linear glyph strip to this PNG")
     image_outputs(sp)
     sp.set_defaults(func=cmd_render)
 
@@ -477,11 +557,22 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("inventory", help="print the primitive inventory")
     sp.add_argument("--json", action="store_true")
+    sp.add_argument("--svg", help="also write the glyph sheet as SVG")
     image_outputs(sp)
     sp.set_defaults(func=cmd_inventory)
 
+    sp = sub.add_parser("key", help="the glyph key: every glyph beside its name (the only English in the script)")
+    sp.add_argument("--svg", help="write the raw glyph sheet as SVG")
+    image_outputs(sp)
+    sp.set_defaults(func=cmd_key)
+
+    sp = sub.add_parser("forks", help="synonymy-fork candidates in a stream or lexicon (§12.6)")
+    sp.add_argument("input", help=".alpb / .alpt stream or lexicon file")
+    sp.add_argument("--threshold", type=float, default=0.7)
+    sp.set_defaults(func=cmd_forks)
+
     sp = sub.add_parser("lexicon", help="manage a local lexicon file (ALP/T symbol blocks)")
-    sp.add_argument("action", choices=["list", "add", "export"])
+    sp.add_argument("action", choices=["list", "add", "export", "forks"])
     sp.add_argument("items", nargs="*", help="for add: English or $COMPOSITION strings")
     sp.add_argument("--lexicon", type=Path, default=DEFAULT_LEXICON)
     sp.add_argument("-o", "--out")

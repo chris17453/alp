@@ -2,5 +2,5 @@ sid        feec2cf2b134a22c13e64f230a3df04d953758d2cf99c1a9beb6160c3df169ae
 comp       $QUANTITY.UNBOUNDED.UNKNOWN :SCOPE $GROUP :MEASURE $ENTITY
 script     '\ue004\ue208\ue503\ue00b\ue000'
 canonical  a36168c40004616d82c40208c405036172a204c4000b05c40000  (26 B)
-reads      a quantity that is unknown, unbounded over a group measured by a thing [gloss: "unknown blast radius"]
+reads      a quantity that is unknown, unbounded over a group measured by a thing
 wrote examples/output/blast-radius.png

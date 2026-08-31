@@ -2,5 +2,5 @@ sid        037fac5ded0722580cd56253a08f173cc7fca8d75834d7789bc43a06ccbe8bfb
 comp       $PROPERTY.HIGH.PUNCTUAL.REQUIRED
 script     '\ue002\ue205\ue304\ue702'
 canonical  a26168c40002616d83c40205c40304c40702  (18 B)
-reads      a property that is high, instantaneous, required [gloss: "urgency"]
+reads      a property that is high, instantaneous, required
 wrote examples/output/urgency.png

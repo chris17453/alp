@@ -102,5 +102,3 @@ roles
   0x04  SCOPE      The domain over which the head applies
   0x05  MEASURE    Unit or scale reference
   0x06  CONDITION  Precondition on the head
-wrote examples/output/inventory.png
-wrote examples/output/inventory.pdf

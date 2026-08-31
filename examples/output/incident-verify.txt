@@ -1,1 +1,1 @@
-ok examples/output/incident.alpt: 19 events, 9 symbols, profile SID-128, digest 014058a6fce219aa
+ok examples/output/incident.alpt: 22 events, 11 symbols, profile SID-128, digest d4f61b82c348163a
