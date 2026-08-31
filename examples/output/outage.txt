@@ -1,0 +1,6 @@
+sid        4944e399fcba41d68b258cd1f04b0e2df7ef411e134d53521ee296ca7a289ec6
+comp       $STATE.NEGATE.NOW.BAD :SCOPE $PROCESS
+script     '\ue006\ue101\ue301\ue701\ue001'
+canonical  a36168c40006616d83c40101c40301c407016172a104c40001  (25 B)
+reads      a state that is negated (not holding), at present, bad over a process [gloss: "outage"]
+wrote examples/output/outage.png

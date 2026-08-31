@@ -1,0 +1,7 @@
+profile        SID-128
+events         19  AMEND=8 ASSERT=8 ATTEST=1 CHECKPOINT=1 JOIN=1
+symbols        9  residue-bearing=5
+assertions     8
+ALP/B bytes    3182
+ALP/T bytes    7339
+state digest   014058a6fce219aab6c74d9cc3f7a5e0df08f0a8c01a440f18994b0163070335

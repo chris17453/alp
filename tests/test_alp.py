@@ -178,7 +178,7 @@ def test_fold_is_idempotent_and_order_independent():
     st3 = fold(evs + evs)
     assert st1.assertions == st2.assertions == st3.assertions
     assert st1.digest() == st2.digest() == st3.digest()
-    assert set(st1.lexicon) == {c.sid for c in comps}
+    assert set(st1.lexicon) >= {c.sid for c in comps}
 
 
 def test_concurrent_events_and_tiebreak():

@@ -401,6 +401,10 @@ def apply(state: State, e: Event) -> State:
             state.assertions[sid] = pair[1]
             state.assertion_source[sid] = eid
     elif t == EventType.JOIN:
+        agent = e.payload.get("caps", {}).get("agent") if isinstance(e.payload, dict) else None
+        if isinstance(agent, dict) and isinstance(agent.get("h"), Pid):
+            c = Composition.from_map(agent)
+            state.lexicon.setdefault(c.sid, c)
         comp = state.competence.setdefault(e.author, set())
         for x in e.payload.get("competence", []):
             comp.add(x if isinstance(x, Pid) else x.data)
@@ -501,9 +505,16 @@ class Stream:
     def _sid(x: Composition | bytes) -> Ref:
         return Ref(REF_SID, x.sid if isinstance(x, Composition) else bytes(x))
 
-    def join(self, author, competence: Iterable[Pid | bytes | Composition] = (), caps: dict | None = None, **kw) -> Event:
+    def join(self, author, competence: Iterable[Pid | bytes | Composition] = (), caps: dict | None = None,
+             announce: bool = True, **kw) -> Event:
+        """JOIN.  With ``announce`` (default) and a named author, ``caps.agent``
+        carries the author's own ``$AGENT ~"name"`` composition, so the author
+        SID is resolvable from the lexicon in any projection of the stream."""
         comp = [x if isinstance(x, Pid) else self._sid(x) for x in competence]
-        return self.emit(EventType.JOIN, author, {"competence": comp, "caps": caps or {}}, **kw)
+        caps = dict(caps or {})
+        if announce and isinstance(author, str) and "agent" not in caps:
+            caps["agent"] = agent_symbol(author).to_map()
+        return self.emit(EventType.JOIN, author, {"competence": comp, "caps": caps}, **kw)
 
     def leave(self, author, reason: str | None = None, **kw) -> Event:
         return self.emit(EventType.LEAVE, author, {"reason": reason} if reason else {}, **kw)

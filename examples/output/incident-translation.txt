@@ -1,0 +1,38 @@
+e839ae84  $PROCESS.NEGATE.NOW.DURATIVE ~"checkout"
+          source:  The checkout service is down now.
+          reads:   a process that is negated (not holding), at present, extended in time — “checkout” [gloss: "The checkout service is down now."]
+          script:  '\ue001\ue101\ue301\ue303\ue804'
+          residue: checkout
+19a85458  $QUANTITY.INCREASE.DURATIVE ~"eu"
+          source:  Latency is spiking in the eu region.
+          reads:   a quantity that is rising, extended in time — “eu” [gloss: "Latency is spiking in the eu region."]
+          script:  '\ue004\ue209\ue303\ue804'
+          residue: eu
+e070f173  $PROPERTY.HIGH.FUTURE.PUNCTUAL.REQUIRED
+          source:  Urgency is high and the deadline is tomorrow.
+          reads:   a property that is high, in the future, instantaneous, required [gloss: "Urgency is high and the deadline is tomorrow."]
+          script:  '\ue002\ue205\ue302\ue304\ue702'
+e323dd51  $EVENT.PUNCTUAL.CAUSE.INFERRED
+          source:  We suspect the deploy caused the outage.
+          reads:   an event that is inferred, instantaneous, causing [gloss: "We suspect the deploy caused the outage."]
+          script:  '\ue00a\ue304\ue400\ue502'
+952351f0  $PROCESS.PERMITTED.PAST
+          source:  The rollback is permitted.
+          reads:   a process that is permitted, in the past [gloss: "The rollback is permitted."]
+          script:  '\ue001\ue106\ue300'
+8a6ed0e9  $EVENT.PAST.NOW.END.OBSERVED.BAD
+          source:  The incident was resolved and observed by the operator.
+          reads:   an event that is observed, in the past, at present, ending, bad [gloss: "The incident was resolved and observed by the operator."]
+          script:  '\ue00a\ue300\ue301\ue30a\ue505\ue701'
+63460ba1  $AGENT.LOW.REQUEST ~"confirm"
+          source:  Please confirm the customer impact is low.
+          reads:   an agent that is low, requested — “confirm” [gloss: "Please confirm the customer impact is low."]
+          script:  '\ue005\ue203\ue601\ue804'
+          residue: confirm
+03225a6a  $SIGN.UNKNOWN ~"Zorblat frobnicates the widget."
+          source:  Zorblat frobnicates the widget.
+          reads:   a signal that is unknown — “Zorblat frobnicates the widget.” [gloss: "Zorblat frobnicates the widget."]
+          script:  '\ue009\ue503\ue804'
+          residue: zorblat frobnicates the widget
+
+8 utterances, 4 fully composed, token residue rate 13.5%

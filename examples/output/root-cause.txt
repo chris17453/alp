@@ -1,0 +1,8 @@
+sid        8d9366abb263b353864f083f7276b6698f5d3aabd24d45eac2975d34967a8380
+comp       $RELATION.CAUSE.INFERRED.CONTESTED :ARG0 ($EVENT.PAST.PUNCTUAL ~"deploy 4471") :ARG1 $STATE
+script     '\ue003\ue400\ue502\ue504\ue801\ue00a\ue300\ue304\ue804\ue802\ue006'
+canonical  a36168c40003616d83c40400c40502c405046172a201a36168c4000a616d82c40300c4030461786b6465706c6f79203434373102c40006  (55 B)
+reads      a relation that is inferred, contested, causing whose agent is (an event that is in the past, instantaneous — “deploy 4471”) whose patient is a state [gloss: "suspected root cause"]
+note       residue-bearing: not fully derivable from the inventory (§5.5)
+wrote examples/output/root-cause.png
+wrote examples/output/root-cause.pdf

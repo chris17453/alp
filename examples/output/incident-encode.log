@@ -1,0 +1,4 @@
+8 utterances, 4 fully composed, token residue rate 13.5%
+english 316 B  ->  ALP/B 3182 B (SID-128, 19 events)  ALP/T 7339 B
+wrote examples/output/incident-symbols.png
+wrote examples/output/incident-symbols.pdf

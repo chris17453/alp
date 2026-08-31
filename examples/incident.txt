@@ -1,0 +1,8 @@
+The checkout service is down now.
+Latency is spiking in the eu region.
+Urgency is high and the deadline is tomorrow.
+We suspect the deploy caused the outage.
+The rollback is permitted.
+The incident was resolved and observed by the operator.
+Please confirm the customer impact is low.
+Zorblat frobnicates the widget.

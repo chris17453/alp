@@ -6,7 +6,9 @@ build/
 *.egg-info/
 .pytest_cache/
 *.png
+!examples/output/*
 *.pdf
+!examples/output/*
 !docs/*.pdf
 *.alpb
 !examples/*.alpt
