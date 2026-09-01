@@ -349,6 +349,8 @@ class Chars:
     words: list
     cell: int = 56
     theme: str = "dark"
+    frame: object = "faint"
+    headline: bool = True
 
 
 @dataclass
@@ -625,7 +627,7 @@ def save_pdf(doc: Doc, path: str, title: str = "ALP", theme: str = "light") -> s
 
 def _chars_image(item: "Chars", width: int) -> Image.Image:
     from . import script
-    return script.render_text(item.words, script.CharStyle(cell=item.cell, theme=item.theme), width=width, margin=0)
+    return script.render_text(item.words, script.CharStyle(cell=item.cell, theme=item.theme, frame=item.frame, headline=item.headline), width=width, margin=0)
 
 
 # ---------------------------------------------------------------------------

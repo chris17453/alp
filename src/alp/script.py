@@ -135,13 +135,14 @@ EPISTEMIC_STROKE = {
     "CONTESTED": (1.0, "double"), "OBSERVED": (1.0, "eye"), "PREDICTED": (1.0, "ahead"),
 }
 
-BASE = 7.0            # head box side at scale 1, in grid units
+BASE = 7.2            # head box side at scale 1, in grid units
 CX = 8.6              # head centre x (room for the left radical and the right connector)
-HEAD_CY = 8.0         # head centre y
-ENC_MARGIN = 1.1      # clearance between head and enclosure
-CROWN_Y = 1.9         # baseline of the crown zone (nothing else enters rows 0-2.6)
-GROUND_Y = 13.9       # the ground line (rows 13.2-14.8 are its zone)
-ROLE_Y = 15.3         # top of the role row (rows 15.2-17)
+HEAD_CY = 8.4         # head centre y
+ENC_MARGIN = 1.0      # clearance between head and enclosure
+HEADLINE_Y = 0.55     # the word's headline
+CROWN_Y = 2.4         # baseline of the crown zone (rows 1.2-3.2)
+GROUND_Y = 14.0       # the ground line (rows 13.3-14.7 are its zone)
+ROLE_Y = 15.2         # top of the role row (rows 15.1-17)
 ROLE_COLS = {         # fixed columns for the roles that live below the head; (col, underline)
     0x03: (0, False), 0x0B: (0, True),    # ARG2 | SOURCE
     0x04: (1, False), 0x09: (1, True),    # SCOPE | MANNER
@@ -167,13 +168,14 @@ class CharStyle:
     wedge: bool = True             # cuneiform-style wedge head at each stroke start
     gap: float = 0.18              # gap between characters of one word, in cells
     word_gap: float = 0.6          # gap between words, in cells
-    frame: bool = False            # faint em-box outline
+    frame: bool | str = "faint"    # em-box: False, True (dim outline) or "faint"
+    headline: bool = True          # a line along the top joining the characters of a word (Devanagari style)
     grid: bool = False             # faint grid (design aid)
 
 
 THEMES = {
-    "dark": {"bg": (14, 14, 16), "ink": (236, 236, 230), "dim": (78, 78, 82), "faint": (32, 32, 36), "clay": (196, 160, 110)},
-    "light": {"bg": (255, 255, 255), "ink": (20, 20, 22), "dim": (180, 180, 176), "faint": (236, 236, 232), "clay": (120, 90, 50)},
+    "dark": {"bg": (14, 14, 16), "ink": (236, 236, 230), "dim": (78, 78, 82), "faint": (44, 44, 48), "clay": (196, 160, 110)},
+    "light": {"bg": (255, 255, 255), "ink": (20, 20, 22), "dim": (180, 180, 176), "faint": (226, 226, 222), "clay": (120, 90, 50)},
 }
 
 
@@ -407,7 +409,7 @@ def draw_char(draw: ImageDraw.ImageDraw, comp: Composition | None, x: float, y: 
             draw.line([(x + i * u, y), (x + i * u, y + st.cell)], fill=C["faint"], width=1)
             draw.line([(x, y + i * u), (x + st.cell, y + i * u)], fill=C["faint"], width=1)
     if st.frame:
-        draw.rectangle([x, y, x + st.cell - 1, y + st.cell - 1], outline=C["dim"], width=1)
+        draw.rectangle([x, y, x + st.cell - 1, y + st.cell - 1], outline=C["faint"] if st.frame == "faint" else C["dim"], width=1)
     if comp is None:
         return
     continuation = overflow is not None or extra_roles is not None
@@ -537,7 +539,7 @@ def draw_char(draw: ImageDraw.ImageDraw, comp: Composition | None, x: float, y: 
         elif v == "BENEFIT":
             pen.seg(cx0, cy, cx1, cy, ink, hw, wedge=False); pen.seg(cx1, cy - 0.7, cx1, cy + 0.7, ink, hw, wedge=False)
     for i, lg in enumerate(pl.logical[:2]):
-        _logic_mark(pen, inv.name_of(lg), 0.6 + i * 2.2, CROWN_Y, ink, thin)
+        _logic_mark(pen, inv.name_of(lg), 0.7 + i * 2.2, CROWN_Y, ink, thin)
 
     # -- ground line (temporal), rows 13.2-14.8 ------------------------------------------------------
     if pl.temporal:
@@ -995,7 +997,14 @@ def word_width(comp: Composition, st: CharStyle, value: Any = True) -> int:
 def draw_word(draw: ImageDraw.ImageDraw, comp: Composition, x: float, y: float, st: CharStyle, value: Any = True) -> float:
     """Draw a composition (and its bound literals) as a word; returns the x after it."""
     step = st.cell + st.gap * st.cell
-    for i, (c, depth, overflow, extra_roles) in enumerate(word_chars(comp)):
+    chars = word_chars(comp)
+    if st.headline:
+        C = THEMES[st.theme]
+        u = st.cell / GRID
+        n = len(chars)
+        x1 = x + n * st.cell + (n - 1) * st.gap * st.cell
+        draw.line([(x + u * 0.6, y + HEADLINE_Y * u), (x1 - u * 0.6, y + HEADLINE_Y * u)], fill=C["ink"], width=max(1, int(st.weight * u * 0.8)))
+    for i, (c, depth, overflow, extra_roles) in enumerate(chars):
         if overflow is not None or extra_roles is not None:
             draw_char(draw, c, x, y, st, depth, overflow=overflow or [], extra_roles=extra_roles or [])
         else:

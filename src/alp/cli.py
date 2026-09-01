@@ -556,6 +556,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="text = running script (compact, default); each = one utterance per row; block = expanded §6.2 blocks")
         sp.add_argument("--cell", type=int, default=56, help="character size in px for the script")
         sp.add_argument("--no-translit", action="store_true", help="omit the ALP/T listing under the script")
+        sp.add_argument("--frame", choices=["faint", "on", "off"], default="faint", help="em-box around each character")
+        sp.add_argument("--no-headline", action="store_true", help="omit the word headline")
 
     sp = sub.add_parser("translate", help="English -> compositions (no stream)")
     text_inputs(sp)
