@@ -145,8 +145,9 @@ def _emit_images(doc, args, title: str) -> list[str]:
 
 def _theme(args) -> str:
     if hasattr(args, "frame"):
+        from .script import INK_PRESETS
         render.set_char_defaults(frame={"faint": "faint", "on": True, "off": False}[args.frame],
-                                 headline=not args.no_headline, color=not args.mono)
+                                 headline=not args.no_headline, color=not args.mono, **INK_PRESETS[getattr(args, "ink", "medium")])
     return "dark" if args.theme == "auto" else args.theme
 
 
@@ -566,6 +567,7 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--frame", choices=["faint", "on", "off"], default="faint", help="em-box around each character")
         sp.add_argument("--no-headline", action="store_true", help="omit the word headline")
         sp.add_argument("--mono", action="store_true", help="monochrome script (classes by shape only)")
+        sp.add_argument("--ink", choices=["crisp", "medium", "soft"], default="medium", help="edge softness / ink blending level")
 
     sp = sub.add_parser("translate", help="English -> compositions (no stream)")
     text_inputs(sp)

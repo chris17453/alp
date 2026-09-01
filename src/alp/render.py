@@ -153,6 +153,9 @@ class Chars:
     frame: object = "faint"
     headline: bool = True
     color: bool = True
+    blend: float = 0.84
+    feather: float = 0.7
+    grain: float = 0.05
 
 
 @dataclass
@@ -425,7 +428,7 @@ def save_pdf(doc: Doc, path: str, title: str = "ALP", theme: str = "light") -> s
     return path
 
 
-CHAR_DEFAULTS: dict = {"frame": "faint", "headline": True, "color": True}
+CHAR_DEFAULTS: dict = {"frame": "faint", "headline": True, "color": True, "blend": 0.84, "feather": 0.7, "grain": 0.05}
 
 
 def set_char_defaults(**kw) -> None:
@@ -439,7 +442,8 @@ def _chars(words: list, cell: int, theme: str) -> "Chars":
 
 def _chars_image(item: "Chars", width: int) -> Image.Image:
     from . import script
-    return script.render_text(item.words, script.CharStyle(cell=item.cell, theme=item.theme, frame=item.frame, headline=item.headline, color=item.color), width=width, margin=0)
+    return script.render_text(item.words, script.CharStyle(cell=item.cell, theme=item.theme, frame=item.frame, headline=item.headline,
+                                                             color=item.color, blend=item.blend, feather=item.feather, grain=item.grain), width=width, margin=0)
 
 
 # ---------------------------------------------------------------------------
@@ -590,14 +594,15 @@ def doc_for_chart(theme: str = "dark") -> Doc:
             Para("Row 1: the twelve heads.  Following rows: each modifier class applied to one head "
                  "(modal · scalar · temporal · causal · epistemic · illocutionary · valence · relational · deictic · logical · affect).  "
                  "Last row: numerals, names (cartouches), a reference seal, a unit.", dim=True),
-            Img(script.render_chart(script.CharStyle(cell=72, theme=theme, frame=True)))]
+            Img(script.render_chart(script.CharStyle(cell=72, theme=theme, frame=True, **{k: CHAR_DEFAULTS[k] for k in ("blend", "feather", "grain")})))]
 
 
 def doc_for_inventory(theme: str = "light") -> Doc:
     """The key: every primitive drawn with the character script beside its name and sense."""
     from . import script
+    ink = {k: CHAR_DEFAULTS[k] for k in ("blend", "feather", "grain")}
     return [Heading(f"ALP script — key, inventory v{inv.INVENTORY_VERSION}", 1),
-            Img(script.render_key(script.CharStyle(cell=64, theme=theme, headline=False)))]
+            Img(script.render_key(script.CharStyle(cell=64, theme=theme, headline=False, **ink)))]
 
 
 def doc_for_transcript(paragraphs: Sequence[Sequence], title: str | None = None, theme: str = "dark",
@@ -642,6 +647,6 @@ def doc_for_chart(theme: str = "dark") -> Doc:
             Para("Row 1: the twelve heads.  Following rows: each modifier class applied to one head "
                  "(modal · scalar · temporal · causal · epistemic · illocutionary · valence · relational · deictic · logical · affect).  "
                  "Last row: numerals, names (cartouches), a reference seal, a unit.", dim=True),
-            Img(script.render_chart(script.CharStyle(cell=72, theme=theme, frame=True)))]
+            Img(script.render_chart(script.CharStyle(cell=72, theme=theme, frame=True, **{k: CHAR_DEFAULTS[k] for k in ("blend", "feather", "grain")})))]
 
 
