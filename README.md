@@ -28,7 +28,7 @@ it in its own way:
 | causal / relational | **connector** on the right — arrows for causation; the relation's form for equal / greater / less / part / has / member / near / inside / … |
 | deictic / affect | **inner marks** — upper: I / you / this / that / which; lower: joy / fear / anger / trust / … |
 | logical | small marks at the top-left corner — and / or / xor / iff / implies / only / except |
-| roles | ARG0 and ARG1 are seeds **inside the head's lobes**; other roles form a reduced row beneath, each seed with its role marker. A nested composition's own character follows (depth-first) — a composition is a short *word*, never a stack |
+| roles | arguments are **half-size heads** in a row beneath (three per character; more spill into a continuation character), in role order. Nothing head-shaped is ever drawn below 50 %. A nested composition's own character follows (depth-first) — a composition is a short *word*, never a stack |
 | literals | **numbers** as wedge counts · **names** as cartouches with a visual hash of the name · **times**, **units**, **reference seals** — bound values written after the word they bind to |
 
 How a character is put together follows hanzi practice

@@ -62,8 +62,8 @@ Modifier classes (the script draws each class in its own way and colour):
 Roles (§5.3, extended): ARG0 agent/cause · ARG1 patient/effect · ARG2
 instrument/recipient · SCOPE domain · MEASURE amount/unit · CONDITION
 precondition · LOC where · TIME when · MANNER how · PURPOSE what for · SOURCE
-from · GOAL to.  ARG0/ARG1 sit inside the head's lobes in the script; the
-others form the role row beneath.
+from · GOAL to.  In the script every role is a half-size head in the row
+beneath the character, three per character.
 
 Idioms the translator produces and the realizer reads:
 
@@ -134,8 +134,8 @@ verification, model substitution.
 4. **Crown** above: value.  **Ground line** below: time (dot left = past,
    centre = now, right = future).
 5. **Left radical**: speech act.  **Right connector**: causation or relation.
-6. **Inner marks**: who (upper), feeling (lower).  **Lobes**: the two
-   arguments, as seeds of their heads.  **Role row**: the other roles.
+6. **Inner marks**: who (upper), feeling (lower).  **Role row**: the
+   arguments and other roles as half-size heads, in role order.
 7. Following characters under the same headline are the nested arguments
    (depth dots bottom-left) and the second half of a compound.
 8. Clay characters after the word are the bound data.

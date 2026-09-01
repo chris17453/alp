@@ -110,11 +110,9 @@ HEAD_POLYS["ENTITY"] = [[(0.4, 1.6), (1.7, 0.3), (5.7, 0.3), (5.7, 4.4), (4.4, 5
 HEAD_POLYS["AGENT"] = [[(0.4, 2.6), (3.0, 0.2), (5.6, 2.6), (5.6, 5.7), (0.4, 5.7)]]
 HEAD_POLYS["EVENT"] = [[(3.0, 0.1), (3.6, 2.4), (5.9, 3.0), (3.6, 3.6), (3.0, 5.9), (2.4, 3.6), (0.1, 3.0), (2.4, 2.4)]]
 # heads with interior room for argument seeds (left lobe / right lobe in local coords)
-LOBES: dict[str, tuple[tuple[float, float], tuple[float, float]]] = {
-    "ENTITY": ((0.8, 2.6), (2.5, 2.6)), "RELATION": ((0.55, 2.0), (4.05, 2.0)),
-    "STATE": ((0.9, 2.0), (3.3, 2.0)), "AGENT": ((0.9, 3.0), (3.3, 3.0)),
-}
-LOBE_MIN_SIDE = 6.4
+LOBES: dict[str, tuple[tuple[float, float], tuple[float, float]]] = {}   # arguments never shrink below 50%: no lobes
+LOBE_MIN_SIDE = 99.0
+ROLES_PER_CHAR = 3
 
 def _seed_ops() -> dict[str, list[tuple]]:
     """Seeds are the heads as solid silhouettes on a 2×2 grid — the only form
@@ -132,7 +130,7 @@ def _seed_ops() -> dict[str, list[tuple]]:
 
 SEEDS: dict[str, list[tuple]] = _seed_ops()
 # a MOMENT seed needs its sector cut to differ from STATE: drawn as a bg-coloured pie in _draw_seed
-SEED_MIN = 1.35          # minimum seed scale (units per 2×2 grid step): 2.7 units across
+SEED_MIN = 1.75          # seeds are half-size heads: 3.5 units across (never below 50% of a 7-unit head)
 
 # The small-form alphabet (3×3 local), used for inner marks, role markers, digits, hashes.
 FORMS: list[list[Seg]] = [
@@ -642,8 +640,8 @@ def _layout(pl: "_Plan", has_below_roles: bool, scalar_scale: float) -> _Layout:
         L.crown = (0, 0, L.y0 + 1.6)
         L.y0 += 3.0
     if has_below_roles:
-        L.rolerow = (L.y1 - 2.9, 0, 0)
-        L.y1 -= 3.6
+        L.rolerow = (L.y1 - 3.7, 0, 0)
+        L.y1 -= 4.6
     if pl.temporal:
         L.ground = (0, 0, L.y1 - 0.9)
         L.y1 -= 2.7
@@ -733,8 +731,9 @@ def draw_char(draw: ImageDraw.ImageDraw, comp: Composition | None, x: float, y: 
     d = dash if dash in ("dash", "dot") else None
     head_ink = K("epistemic") if (d or "CONTESTED" in ep_names or "KNOWN" in ep_names) else ink
     if part == 1:
-        # second character of a compound: the head as a seed, centred, so the character keeps its identity
-        pen.ops(SEEDS[hname], cx - 1.3, cy - 1.3, 1.3, C["dim"], pen.w * 0.8, detail=False)
+        # second character of a compound: the head at half size, dim, so the character keeps its identity
+        hs2 = side * 0.5
+        pen.ops(HEADS[hname], cx - hs2 / 2, cy - hs2 / 2, hs2 / 6.0, C["dim"], pen.w * 0.9, detail=False)
     elif fillmode == "full":
         for pg in HEAD_POLYS[hname]:
             pen.poly(pg, hx0, hy0, k, ink, fill=True)
@@ -907,7 +906,7 @@ def draw_char(draw: ImageDraw.ImageDraw, comp: Composition | None, x: float, y: 
     if L.rolerow and below:
         ry, rx0, rx1 = L.rolerow
         n = len(below)
-        span = max(rx1 - rx0, 3.4 * n)
+        span = max(rx1 - rx0, 4.4 * n)
         x0r = cx - span / 2
         slot = span / n
         ssc = SEED_MIN
@@ -1076,12 +1075,17 @@ def word_chars(comp: Composition) -> list[tuple]:
             lob = None
         inside = [r for r in roles if lob is not None and r[0] in (1, 2)]
         below = [r for r in roles if not (lob is not None and r[0] in (1, 2))]
+        chunks = [below[i:i + ROLES_PER_CHAR] for i in range(0, len(below), ROLES_PER_CHAR)] or [[]]
         if _components(pl, roles, hname) > INK_BUDGET:
             a, b = _split_plan(pl)
             out.append((c, depth, 0, a, inside))
-            out.append((c, depth, 1, b, below))
+            out.append((c, depth, 1, b, chunks[0]))
+            for extra in chunks[1:]:
+                out.append((c, depth, 1, _Plan(), extra))
         else:
-            out.append((c, depth, 0, pl, roles))
+            out.append((c, depth, 0, pl, inside + chunks[0]))
+            for extra in chunks[1:]:
+                out.append((c, depth, 1, _Plan(), extra))
         for m in c.modifiers:
             if isinstance(m, Composition):
                 visit(m, depth + 1)

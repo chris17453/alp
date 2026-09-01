@@ -180,7 +180,10 @@ composited at partial opacity so crossings darken, a slight bow on long
 strokes, 3× supersampling for soft edges.  Colour by class.  Seeds (the
 reduced heads in lobes and the role row) are solid silhouettes with a minimum
 size, because an outline stops being recognisable below ~12 px and a
-silhouette does not.
+silhouette does not.  Nothing head-shaped is drawn below 50 % of the head
+size: seeds are half-size heads in the role row (three per character, the
+rest in a continuation character); the lobe placement was dropped for that
+reason.
 
 Settled by decision: the radical-position variant (7) is not implemented —
 the ink budget's compound split covers the heavy-character case with a fixed,
