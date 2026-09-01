@@ -1,251 +1,134 @@
-# alp — Agent Lexicon Protocol toolkit
-
-A Python implementation of **RFC-ALP-001** (`docs/rfc-alp-001.pdf`): a compound,
-aggregative language for machine agents.  Meaning is composed from a closed
-inventory of semantic primitives into trees with ordered roles; each composed
-symbol is identified by the hash of its tree; symbols travel over an
-append-only causal event stream; and the language has a written **script** in
-which one composed symbol is one character.
-
-![character chart](examples/output/01-character-chart.png)
-
-## The script
-
-One composition = **one square character**, composed — not stacked — the way
-hanzi fuse components by position, Egyptian quadrats pack a group into one
-block, and cuneiform builds every sign from wedges.  The head radical (one of
-twelve kinds of thing) sits in the centre and every modifier class transforms
-it in its own way:
-
-| class | what it does to the head |
-|---|---|
-| scalar | **scale and fill** — NONE tiny · LOW small · HIGH large · EXTREME doubled · ALL filled · SOME hatched · BOUNDED bracketed · UNBOUNDED open · INCREASE/DECREASE a rising/falling tip |
-| epistemic | **stroke** — KNOWN heavy · INFERRED dashed · UNKNOWN dotted · CONTESTED doubled · OBSERVED eye · PREDICTED forward tip |
-| modal | **enclosure** — NECESSARY box · POSSIBLE dashed box · HYPOTHETICAL corners · PERMITTED open-top · FORBIDDEN lidded · DESIRED box+dot · **NEGATE slashes the head** |
-| valence | **crown** above — GOOD ^ · BAD v · REQUIRED = · OPTIONAL dashed · SAFE roof · HARM zigzag · COST/BENEFIT ticks |
-| temporal | **ground line** the head stands on — dot left/centre/right = PAST/NOW/FUTURE · doubled DURATIVE · tick PUNCTUAL · end-stops BEGIN/END · reference bars BEFORE/DURING/AFTER |
-| illocutionary | **left radical** (speech) — bar ASSERT · hook REQUEST · doubled COMMIT · top hook QUERY · tick WARN · crossed REFUSE · dashed PROPOSE · check ACKNOWLEDGE |
-| causal / relational | **connector** on the right — arrows for causation; the relation's form for equal / greater / less / part / has / member / near / inside / … |
-| deictic / affect | **inner marks** — upper: I / you / this / that / which; lower: joy / fear / anger / trust / … |
-| logical | small marks at the top-left corner — and / or / xor / iff / implies / only / except |
-| roles | arguments are **half-size heads** in a row beneath (three per character; more spill into a continuation character), in role order. Nothing head-shaped is ever drawn below 50 %. A nested composition's own character follows (depth-first) — a composition is a short *word*, never a stack |
-| literals | **numbers** as wedge counts · **names** as cartouches with a visual hash of the name · **times**, **units**, **reference seals** — bound values written after the word they bind to |
-
-How a character is put together follows hanzi practice
-([`docs/script-design-notes.md`](docs/script-design-notes.md) is the study):
-
-* **One stroke set, modulated.** Every mark is a heng / shu / pie / na / dian /
-  arc / wave with brush-like weight modulation (horizontals lighter than
-  verticals, falling strokes tapering or swelling); weight never drops below
-  1/22 em, so small characters keep their strokes.
-* **Structure, not slots.** Bands exist only for the components present; the
-  head takes the largest square that remains.  A bare head fills the box; a
-  loaded one gives up space proportionally.  Crown, ground line, radical and
-  connector are sized from the head and attached to its edge — nothing floats.
-* **Ink budget.** A composition with more than six components is written as a
-  two-character compound in a fixed split (head-shaping marks first,
-  surroundings and roles second, the head shown as a seed), the way hanzi put
-  complexity into more characters rather than denser ones.
-* **Colour is a channel.** The head is in ink; each modifier class has a
-  colour — modality violet, degree amber, time teal, cause red, certainty
-  green, speech magenta, value gold, deixis blue, feeling pink, literals clay —
-  so a mark's class is read before its shape (`--mono` for shape only).
-* **Word headline** joins the characters of one word; a faint em-box is on by
-  default in running text (`--frame off` to drop it).  `--svg` writes the same
-  layout as vector; `alp.svg.character_svgs` gives one SVG per character for a
-  font pipeline.
-
-`examples/output/03-one-word.png` — *"deploy is the suspected, disputed cause of the outage"*:
+# ALP — an experiment in a written language for machines
 
 ![one word](examples/output/03-one-word.png)
 
-A whole text is a few lines of characters (`examples/output/04-complex-script.png`):
+*Three characters. Read left to right: a relation — dashed because it's inferred,
+doubled because it's disputed, red arrow for "causes" — between a past
+instantaneous event and a negated, bad state. In English: "the deploy is the
+suspected, disputed cause of the outage."*
 
-![complex thoughts](examples/output/04-complex-script.png)
+## The idea
 
-## Running the protocol
+What if agents didn't talk to each other in English?
 
-`alp.peer.Peer` is a participant, not just a serializer.  It buffers events
-that name symbols it cannot resolve and emits EXPAND (§9.3), answers EXPAND
-with GROUND under a rate limit (§11.4), verifies GROUND payloads against the
-SIDs it asked for (§11.3), attests HELD on receipt and DEMONSTRATED after a
-round-trip challenge (§9.2), emits CHECKPOINTs and verifies received digests
-independently — E_DIVERGENCE / E_INVENTORY on mismatch (§7.3) — rate-limits
-AMEND and caps the lexicon (§11.2), and handles model substitution with
-DECLINED attestations (§9.4).  `examples/two_agents.py` runs two peers through
-all of it and checks that their state digests converge:
+English is expensive to store, ambiguous to read back, and tied to whichever
+model wrote it. Binary schemas are cheap but brittle — change the schema and
+every old message goes dark. ALP is an attempt at a third thing: a language
+where **meaning is composed from a small closed set of primitives**, every
+composed symbol is **identified by the hash of its own definition**, and the
+whole thing has a **script** so a human can look at a transcript and see the
+structure without a decoder.
 
-```
-$ uv run python examples/two_agents.py
-events: alice=29 bob=29  lexicon: 8/8  converged: True  pending@bob: 0  declined@bob: 1
-[bob] buffered ASSERT 5d3f403e: unknown ['037fac5d']
-[bob] applied buffered ASSERT 5d3f403e
-[bob] model replaced: 110 primitives, 0 symbols declined
-```
+- 12 kinds of thing (entity, process, property, relation, quantity, agent,
+  state, place, moment, sign, event, group) …
+- … qualified by a hundred-odd primitives in classes that behave differently:
+  modality, degree, time, cause, certainty, speech act, value, relation,
+  deixis, logic, feeling …
+- … arranged into trees with ordered roles (agent, patient, where, when, why …).
+- Names, numbers, dates and measurements are *data bound to a role*, never
+  part of the symbol — so the symbols stay universal and the specifics ride
+  alongside.
+- The symbol's identity is `sha256(its canonical tree)`. Two agents who compose
+  the same meaning get the same identifier without ever having met. Nobody
+  assigns numbers; nothing can be renamed out from under a stored message.
+- Conversations are append-only causal event streams: join, assert, amend the
+  lexicon, ask about an unknown symbol, answer, repair a misunderstanding,
+  checkpoint. Any participant can be swapped for a different model mid-stream
+  and pick up from the last checkpoint.
 
-## Transcribing a document
+The spec this grew out of is in [`docs/rfc-alp-001.pdf`](docs/rfc-alp-001.pdf).
+The implementation here goes further than the spec in places (inventory v2,
+literals, the script) and the spec is honest about what's unsolved (§12.6:
+two agents can compose the *same* idea two different ways and never notice).
+That's part of why it's an experiment.
 
-```
-$ alp transcribe -f letter.txt -o out/
-letter: 10 utterances in 3 paragraphs -> out/
-```
+## The script
 
-writes `letter-script.png` (script only), `letter-transcript.png/.pdf`
-(each paragraph as script, then every sentence with its tree and bound
-values), `letter.alpt` / `letter.alpb` (the stream) and
-`letter-transcript.txt`.  `examples/output/06-document-*` is the transcript of
-[`examples/document.txt`](examples/document.txt) — *"Hi, my name is Sally. I
-work on the payments team in Berlin. The server broke yesterday at 3:00 … I
-need a python script that restarts the service if the error rate rises above
-5%. Please send it to me before Friday. Thanks!"*:
+One composition is one square character, built the way hanzi are built —
+components fused by position — rather than by stringing glyphs in a row. The
+head shape says what kind of thing it is; everything else transforms it:
+
+| what | how it shows |
+|---|---|
+| certainty | the head's stroke: heavy = known, dashed = inferred, dotted = unknown, doubled = disputed |
+| degree | the head's size and fill |
+| modality | an enclosure around the head; a slash through it is negation |
+| value | a crown above (arc up = good, arc down = bad, zigzag = harm …) |
+| time | the ground line it stands on (dot left = past, centre = now, right = future) |
+| speech act | a radical on the left |
+| cause / relation | a connector on the right |
+| who / feeling | small marks inside |
+| arguments | half-size heads in a row beneath |
+
+Each class has its own colour, strokes are drawn with brush pressure, and
+names come out as cartouches. Here is the whole character chart — the twelve
+heads, how they scale, and every class applied to a head it suits:
+
+![character chart](examples/output/01-character-chart.png)
+
+And an ordinary paragraph — *"Hi, my name is Sally. I work on the payments team
+in Berlin. The server broke yesterday at 3:00…"* — as script, with the
+translator's trees and the realizer's readings underneath:
 
 ![document transcript](examples/output/06-document-transcript.png)
 
-## What English becomes
+## What works today
 
-```
-$ alp translate "We will meet Alice at 12:00 on 2026-09-01 in Berlin."
-8c080279  $EVENT.FUTURE.PUNCTUAL.NEAR :ARG0 ($GROUP.SELF) :ARG1 ($ENTITY) :LOC ($ENTITY) :TIME ($MOMENT)
-          bound:   ARG1='alice'  LOC='berlin'  TIME=2026-09-01T12:00
-
-$ alp translate "If the load rises above 80%, restart the server or roll back the release."
-5d44fe54  $GROUP.OR :ARG0 ($PROCESS.REPEAT.BEGIN :ARG1 ($ENTITY)
-                          :CONDITION ($RELATION.ABOVE :ARG0 ($QUANTITY.DURATIVE) :ARG1 ($STATE :MEASURE ($QUANTITY))))
-                    :ARG1 ($PROCESS.PAST :ARG1 ($EVENT.PUNCTUAL))
-          bound:   ARG0/CONDITION/ARG1/MEASURE = 80 %
-```
-
-A sentence becomes a **tree of primitives**: noun phrases are nodes; adjectives,
-tense, quantifiers and feelings attach to the node they qualify; prepositions
-become roles (LOC, TIME, SOURCE, GOAL, PURPOSE, MANNER, SCOPE, MEASURE …);
-causal, conditional and disjunctive connectives become RELATION / CONDITION /
-OR structure; pronouns become deixis (SELF, ADDRESSEE, THIS, THAT, WHICH).
-
-And back again — `alp.realize` reads a tree and its bound values out as a
-sentence, recovering content words by reverse lookup against the lexicon
-(`$STATE.NEGATE.BAD` → "outage", `$PROCESS.REPEAT.BEGIN` → "restart"), so a
-transcript is legible without its source: *"The deployment apparently caused
-the outage."*, *"I need the Python message that restarts the service if the
-latency of the error is above 5 %."*  What the composition does not encode
-(server vs host) comes back as the head's generic noun — the honest result.
-
-**English never enters a symbol.**  Everything that can only be named or
-counted — people, places, numbers, measurements, dates — is a *literal bound to
-a role* at ASSERT time (§5.4), never a primitive.  The symbol for "12 servers
-in Berlin" is `$ENTITY :MEASURE $QUANTITY :LOC $ENTITY`; `12` and `berlin` are
-values attached when it is asserted.  `--stats` prints the English-leakage
-rate; the RFC's own one-head translator is kept as `--simple`.
-
-## Inventory v2
-
-The RFC's v1 inventory (76 primitives, 6 roles) can compose concepts but not
-say *who, how many, which one, compared to what, or how it feels*.  Per the
-RFC's own rule (§4.1: extension is a version bump) this toolkit ships
-**inventory version 2**: every v1 code unchanged, plus
-
-| class | members |
-|---|---|
-| 0x09 relational | EQUAL GREATER LESS PART HAS MEMBER NEAR INSIDE OUTSIDE ABOVE BELOW TOWARD |
-| 0x0A deictic | SELF ADDRESSEE THIS THAT WHICH SAME OTHER EACH ANY GENERIC |
-| 0x0B logical | AND OR XOR IFF IMPLIES ONLY EXCEPT |
-| 0x0C affect | JOY FEAR ANGER TRUST SURPRISE DISGUST SADNESS CALM |
-| 0x08 structural + | NUM STR TIME UNIT EREF (literal markers) |
-| roles 0x07–0x0C | LOC TIME MANNER PURPOSE SOURCE GOAL |
-
-The head set stays at twelve.  `alp key` lists everything with glyph, sense
-and codepoint.
-
-## Examples you can look at
-
-`examples/output/` is a curated set (regenerate with `sh examples/make_examples.sh`):
-
-| File | What it is |
-|---|---|
-| [`01-character-chart.png`](examples/output/01-character-chart.png) | The script: twelve heads; seeds and scaling rows; every modifier class as a transformation of one head; numerals, cartouches, a seal, a unit |
-| [`02-key.png`](examples/output/02-key.png) | Every primitive drawn *with the script* beside its name, class and sense — the only place English appears |
-| [`03-one-word.png`](examples/output/03-one-word.png) | One composition large: *deploy is the suspected, disputed cause of the outage* |
-| [`04-complex-script.png`](examples/output/04-complex-script.png) / [`.svg`](examples/output/04-complex-script.svg) | Twelve sentences of mixed content as running script, with the ALP/T listing |
-| [`05-complex-with-english.png`](examples/output/05-complex-with-english.png), [`05-complex-translation.txt`](examples/output/05-complex-translation.txt) | The same, one utterance per row with source, tree, bound values and the realizer's reading |
-| [`06-document-transcript.png`](examples/output/06-document-transcript.png) / `.pdf` / [`.txt`](examples/output/06-document-transcript.txt), `06-document.alpt` / `.alpb` | `alp transcribe` of a letter: English → ALP → English |
-| [`07-incident.alpb`](examples/output/07-incident.alpb) → [`07-incident.alpt`](examples/output/07-incident.alpt), [`07-incident-audit.pdf`](examples/output/07-incident-audit.pdf), `07-incident-verify.txt` | A stream in binary and lossless text, its audit document, hash/round-trip check |
-| [`08-two-agents.alpt`](examples/output/08-two-agents.alpt) / [`.log`](examples/output/08-two-agents.log) / `.png` | Two peers running the protocol: inline AMEND, buffered EXPAND/GROUND, challenge, REGROUND, verified CHECKPOINT, model substitution |
-| [`09-appendix-d.alpt`](examples/output/09-appendix-d.alpt) | The RFC's worked 23-event conversation with real hashes |
-
-## Install and run
+- A canonical binary encoding and a lossless text form that round-trips
+  byte-for-byte, with hashes, causal ordering and a stateless fold.
+- A runnable peer: two agents actually converse, buffer what they don't know,
+  ask, answer, verify each other's checkpoints, and converge
+  (`examples/two_agents.py`).
+- English in: a rule-based translator that turns sentences into trees and binds
+  the names and numbers. English out: a realizer that reads trees back into
+  sentences. Both are scaffolding, not understanding — the language and the
+  script are the point.
+- The script, rendered to PNG, PDF and SVG, with a chart and a key.
 
 ```sh
 uv sync
-uv run pytest                                          # 50 tests
-uv run alp translate "urgency is high" --stats         # English -> tree
-uv run alp render -f notes.txt --png notes.png         # English -> script   (--english, --style each, --cell N, --pdf, --svg)
-uv run alp transcribe -f letter.txt -o out/            # document -> script + transcript + stream
-uv run alp compose '$STATE.NEGATE.NOW.BAD :SCOPE $PROCESS' --png outage.png --cell 160
-uv run alp chart --png chart.png                       # the character chart
-uv run alp key --png key.png --svg glyphs.svg          # the key
-uv run alp encode -f notes.txt -o notes.alpb --png notes.png --pdf notes.pdf --stats
-uv run alp export notes.alpb -o notes.alpt             # ALP/B -> ALP/T (lossless; import gives identical bytes)
-uv run alp import notes.alpt -o again.alpb
-uv run alp render notes.alpt --png conversation.png    # a stream read as conversation
-uv run alp decode notes.alpb --events                  # ALP -> English
-uv run alp verify notes.alpt
-uv run alp forks notes.alpb                            # §12.6 synonymy-fork candidates
+uv run alp translate "we suspect the deploy caused the outage"
+uv run alp render -f yourtext.txt --png out.png
+uv run alp transcribe -f letter.txt -o out/
+uv run alp chart --png chart.png
+uv run python examples/two_agents.py
 ```
 
-[`docs/language-reference.md`](docs/language-reference.md) is the reference:
-compositions, inventory v2 with each class's script treatment, roles, the
-idioms the translator produces, literals and binding, ALP/T, events, how to
-read a character, and the commands.
+More in [`examples/output/`](examples/output/) and the
+[language reference](docs/language-reference.md).
 
-## Package
+## What's not finished, and where it could go
 
-| Module | What it does |
-|---|---|
-| `alp.alpb` | Canonical ALP/B TLV codec (CBOR-shaped, §7.5), strict `E_NONCANONICAL`, REF kind 4 = PID |
-| `alp.inventory` | Inventory v2: primitives, classes, roles, PUA codepoints; `V1_PRIMITIVES` is the RFC set |
-| `alp.composition` | Composition records, canonical form, SID, transliteration parser, English readings |
-| `alp.script` | **The character script**: composer, numerals, cartouches, seals, running text, chart |
-| `alp.translate` | `Translator` (compositional; literals bound as data; relative clauses, passives, coordination fragments, anaphora refs) and `SimpleTranslator` (RFC Appendix E) |
-| `alp.realize` | ALP → English: reverse-lexicon surface realizer used by `decode`, `transcribe` and the transcript images |
-| `alp.events` | Frames, EIDs, causal DAG, frontier, fold with EID tiebreak, CHECKPOINT digests, profiles, `reprofile` |
-| `alp.alpt` | ALP/T writer + parser, byte-identical round trip, SID/EID mismatch detection |
-| `alp.lexicon` | Structural near-duplicate scan for synonymy forks (§12.6) |
-| `alp.render` | Documents: running script, per-utterance rows, transcripts; PNG (Pillow) and PDF (reportlab) |
-| `alp.svg` | SVG backend for the script (same layout as PNG); per-character SVGs for a font |
-| `alp.peer` | A running participant: buffering/EXPAND/GROUND, ATTEST and challenges, CHECKPOINT verification, rate limits, model substitution |
-| `alp.cli` | `translate transcribe encode decode export import verify render compose chart key forks lexicon stats inventory` |
+This is a prototype. Things we know are rough or open:
 
-```python
-from alp import Composition, Translator, Stream, alpt, script
+- **The English front end** is rules and lexicons. It handles a lot of
+  ordinary sentences and falls over on others; the transcripts show you when.
+- **The script has no font yet.** It is drawn procedurally; there is a
+  per-character SVG exporter as a starting point.
+- **Synonymy forking** (the same idea composed two ways) is unsolved in the
+  spec. There's a structural near-duplicate scan, which is a mitigation, not a
+  fix.
+- **Is 12 heads and ~120 primitives enough?** Nobody knows yet. Inventory v2
+  added relation, deixis, logic and affect because the first version couldn't
+  say *who*, *how many*, *compared to what* or *how it feels*.
+- **Would models actually read this better than English?** Untested. The spec
+  itself says the script buys human audit, not token savings.
 
-(t,) = Translator().translate("We suspect the deploy caused the outage.")
-t.composition.transliterate()   # '$RELATION.PAST.CAUSE.INFERRED :ARG0 ($EVENT.PUNCTUAL) :ARG1 ($STATE.NEGATE.BAD)'
-t.value                         # True — nothing bound; names/numbers would appear here
-script.render_word(t.composition, script.CharStyle(cell=96)).save("blame.png")
+If any of that sounds like something you'd want to push on — a font, a better
+parser, a real evaluation with models on both ends, a different inventory — the
+code is small enough to read in an afternoon.
+[`docs/script-design-notes.md`](docs/script-design-notes.md) records the design
+reasoning so far, including what was borrowed from hanzi, cuneiform and
+hieroglyphs and what was deliberately left out.
 
-s = Stream(sid_width=16)
-s.join("a000", competence=list(alp.PRIMITIVES.values()))
-s.amend("a000", [t.composition]); s.assert_("a000", [(t.composition, t.value)])
-assert alpt.loads(alpt.dumps(s)).stream.to_bytes() == s.to_bytes()
+## Layout
+
+```
+src/alp/     alpb (codec) · inventory · composition · script (the characters) · translate · realize
+             events (streams) · peer (a participant) · alpt (text form) · svg · render · cli
+docs/        RFC-ALP-001, language reference, script design notes
+examples/    example texts, the two-agent demo, generated output
+tests/       pytest
 ```
 
-## Implementation decisions
-
-* **Gloss out of the hash, residue in** (§3.1); **roles ordered, modifiers a set** (§3.3); **inventory closed per version** (§4.1) — asserted in code and tests.  Inventory v2 is a version bump, not an open inventory; `INVENTORY_VERSION` is checked at CHECKPOINT.
-* **Literals are data, not symbols.**  Numbers, names, times, units and references are bound to a role path at ASSERT time (`{"bind": {path: literal}}`) and have their own characters.  `--names residue` restores the RFC's §5.5 behaviour.
-* **EIDs hash the body as transmitted at the stream's profile**; `Stream.reprofile` / `alp export --archive` re-hash to SID-256 for storage.
-* **Authors are symbols** (`$AGENT ~"name"`), announced in `JOIN.caps.agent`.
-* **ALP/T extensions** for losslessness: `profile`/`stream` header, `fl`/`sig` lines, `@hex` EID terms, `{k v}` maps, `>` raw-payload escape.
-* **§12.6 synonymy forking** is unsolved in the RFC; `alp forks` is a structural near-duplicate scan feeding REGROUND.
-* **The script is procedural** — no font yet.  Every character is a stroke program on a 17×17 grid; `glyph-sheet.svg` is the start of a font.
-
-## Known limits
-
-The translator is rule-based.  Relative clauses ("a script *that restarts the
-service*") take over the clause, complement clauses ("she told me that …") and
-coordination inside noun phrases produce lopsided trees, and the residue of
-greetings is thin.  The leakage rate and the `reads:` line under each
-character show you when.  Read it as a front end for authoring, not as
-understanding — the language and the script are the deliverable; the English
-front end is scaffolding.
-
-MIT licensed, like the specification.
+MIT. It's an experiment — take it somewhere.
