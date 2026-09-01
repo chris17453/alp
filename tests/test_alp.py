@@ -332,7 +332,7 @@ def test_cli_pipeline(tmp_path):
     r = _alp("decode", str(alpb_path))
     assert "Urgency is high." in r.stdout
     r = _alp("decode", str(alpb_path), "--readings")
-    assert "a property that is high" in r.stdout
+    assert "urgency is high" in r.stdout.lower()
     r = _alp("forks", str(alpb_path))
     assert r.returncode == 0
     r = _alp("key", "--png", str(tmp_path / "key.png"), "--svg", str(tmp_path / "key.svg"))
@@ -387,3 +387,26 @@ def test_svg_backend_matches_png_layout(tmp_path):
     assert f'width="{img.width}"' in text
     per = svg.character_svgs([c])
     assert c.sid_hex() in per
+
+
+def test_translator_structures_and_realizer():
+    from alp.realize import realize
+    tr = Translator()
+    (r,) = tr.translate("The outage was caused by a bad deploy.")
+    roles = dict(r.composition.roles)
+    assert roles[ROLES["ARG0"]].head == pid("EVENT") and roles[ROLES["ARG1"]].head == pid("STATE")   # passive normalised
+    (r,) = tr.translate("I need a python script that restarts the service.")
+    arg1 = dict(r.composition.roles)[ROLES["ARG1"]]
+    assert ROLES["SCOPE"] in dict(arg1.roles)                                                     # relative clause attached
+    rs = tr.translate("The team has 12 servers in Berlin and 3 in Tokyo.")
+    assert len(rs) == 2 and pid("AND") in rs[1].composition.modifiers and rs[1].composition.head == pid("ENTITY")
+    tr.translate("The server broke.")
+    (r,) = tr.translate("It was old.")
+    assert any(isinstance(v, Ref) for v in r.value["bind"].values())                               # anaphora -> reference
+    for sent in ["We suspect the deploy caused the outage.", "Hi, my name is Sally.", "Thanks!",
+                 "Latency is 4200ms in the eu region.", "If the load rises above 80%, restart the server."]:
+        for t in tr.translate(sent):
+            out = realize(t.composition, t.value)
+            assert out and (out[0].isupper() or out[0].isdigit()) and out.endswith((".", "?", "!")), (sent, out)
+    (t,) = Translator().translate("We suspect the deploy caused the outage.")
+    assert "caus" in realize(t.composition, t.value)

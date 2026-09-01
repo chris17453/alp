@@ -1,64 +1,77 @@
 8c080279  $EVENT.FUTURE.PUNCTUAL.NEAR :ARG0 ($GROUP.SELF) :ARG1 ($ENTITY) :LOC ($ENTITY) :TIME ($MOMENT)
           bound:   ARG1='alice'  LOC='berlin'
           source:  We will meet Alice at 12:00 on 2026-09-01 in Berlin.
-          reads:   an event that is in the future, instantaneous, near whose agent is (a group that is I/we) whose patient is (a thing) at (a thing) when (a moment) [gloss: "We will meet Alice at 12:00 on 2026-09-01 in Berlin."]
+          reads:   We will meet Alice in Berlin at 2026-09-01T12:00.
+          tree:    an event that is in the future, instantaneous, near whose agent is (a group that is I/we) whose patient is (a thing) at (a thing) when (a moment) [gloss: "We will meet Alice at 12:00 on 2026-09-01 in Berlin."]
           script:  '\ue00a\ue302\ue304\ue906\ue801\ue00b\uea00\ue802\ue801\ue000\ue802\ue801\ue000\ue802\ue801\ue008\ue802'
 43532adc  $RELATION.HAS :ARG0 ($GROUP) :ARG1 ($ENTITY :MEASURE ($QUANTITY) :LOC ($ENTITY))
           bound:   ARG1/LOC='berlin'
           source:  The team has 12 servers in Berlin and 3 in Tokyo.
-          reads:   a relation that is having whose agent is (a group) whose patient is (a thing measured by (a quantity) at (a thing)) [gloss: "The team has 12 servers in Berlin and 3 in Tokyo."]
+          reads:   The group has 12 things in Berlin.
+          tree:    a relation that is having whose agent is (a group) whose patient is (a thing measured by (a quantity) at (a thing)) [gloss: "The team has 12 servers in Berlin and 3 in Tokyo."]
           script:  '\ue003\ue904\ue801\ue00b\ue802\ue801\ue000\ue801\ue004\ue802\ue801\ue000\ue802\ue802'
-afede51d  $STATE :MEASURE ($QUANTITY) :LOC ($ENTITY)
+40b1f2e5  $ENTITY.AND :MEASURE ($QUANTITY) :LOC ($ENTITY)
           bound:   LOC='tokyo'
           source:  The team has 12 servers in Berlin and 3 in Tokyo.
-          reads:   a state measured by (a quantity) at (a thing) [gloss: "The team has 12 servers in Berlin and 3 in Tokyo."]
-          script:  '\ue006\ue801\ue004\ue802\ue801\ue000\ue802'
+          reads:   3 things in Tokyo.
+          tree:    a thing that is and measured by (a quantity) at (a thing) [gloss: "The team has 12 servers in Berlin and 3 in Tokyo."]
+          script:  '\ue000\ueb00\ue801\ue004\ue802\ue801\ue000\ue802'
 833c7688  $QUANTITY.DURATIVE :LOC ($PLACE)
           bound:   LOC='eu'
           source:  Latency is 4200ms in the eu region.
-          reads:   a quantity that is extended in time at (a place) [gloss: "Latency is 4200ms in the eu region."]
+          reads:   The latency is 4200 ms in EU.
+          tree:    a quantity that is extended in time at (a place) [gloss: "Latency is 4200ms in the eu region."]
           script:  '\ue004\ue303\ue801\ue007\ue802'
 ea336578  $RELATION.GREATER :ARG0 ($QUANTITY.DURATIVE :SCOPE ($EVENT.BAD)) :ARG1 ($STATE :MEASURE ($QUANTITY))
           source:  The error rate is greater than 5%.
-          reads:   a relation that is greater than whose agent is (a quantity that is extended in time over (an event that is bad)) whose patient is (a state measured by (a quantity)) [gloss: "The error rate is greater than 5%."]
+          reads:   The latency of the error is greater than 5 %.
+          tree:    a relation that is greater than whose agent is (a quantity that is extended in time over (an event that is bad)) whose patient is (a state measured by (a quantity)) [gloss: "The error rate is greater than 5%."]
           script:  '\ue003\ue901\ue801\ue004\ue303\ue801\ue00a\ue701\ue802\ue802\ue801\ue006\ue801\ue004\ue802\ue802'
 5d44fe54  $GROUP.OR :ARG0 ($PROCESS.REPEAT.BEGIN :ARG1 ($ENTITY) :CONDITION ($RELATION.ABOVE :ARG0 ($QUANTITY.DURATIVE) :ARG1 ($STATE :MEASURE ($QUANTITY)))) :ARG1 ($PROCESS.PAST :ARG1 ($EVENT.PUNCTUAL))
           source:  If the load rises above 80%, restart the server or roll back the release.
-          reads:   a group that is or whose agent is (a process that is recurring, beginning whose patient is (a thing) given (a relation that is above whose agent is (a quantity that is extended in time) whose patient is (a state measured by (a quantity))) [gloss: "If the load rises above 80%, restart the server or roll back the release."]) whose patient is (a process that is in the past whose patient is (an event that is instantaneous)) [gloss: "If the load rises above 80%, restart the server or roll back the release."]
+          reads:   Restart the thing if the latency is above 80 % or roll the deployment.
+          tree:    a group that is or whose agent is (a process that is recurring, beginning whose patient is (a thing) given (a relation that is above whose agent is (a quantity that is extended in time) whose patient is (a state measured by (a quantity))) [gloss: "If the load rises above 80%, restart the server or roll back the release."]) whose patient is (a process that is in the past whose patient is (an event that is instantaneous)) [gloss: "If the load rises above 80%, restart the server or roll back the release."]
           script:  '\ue00b\ueb01\ue801\ue001\ue308\ue309\ue801\ue000\ue802\ue801\ue003\ue909\ue801\ue004\ue303\ue802\ue801\ue006\ue801\ue004\ue802\ue802\ue802\ue802\ue801\ue001\ue300\ue801\ue00a\ue304\ue802\ue802'
 e0c4f331  $AGENT.SELF.FEAR :ARG1 ($RELATION.HAS :ARG0 ($ENTITY) :ARG1 ($SIGN.NEGATE.PAST))
           source:  I am afraid the database has no memory.
-          reads:   an agent that is I/we, afraid whose patient is (a relation that is having whose agent is (a thing) whose patient is (a signal that is negated (not holding), in the past)) [gloss: "I am afraid the database has no memory."]
+          reads:   I am afraid that the thing has the failed message.
+          tree:    an agent that is I/we, afraid whose patient is (a relation that is having whose agent is (a thing) whose patient is (a signal that is negated (not holding), in the past)) [gloss: "I am afraid the database has no memory."]
           script:  '\ue005\uea00\uec01\ue801\ue003\ue904\ue801\ue000\ue802\ue801\ue009\ue101\ue300\ue802\ue802'
 430067ff  $AGENT.PAST.BEGIN.EACH.JOY :LOC ($PLACE) :TIME ($EVENT.DURATIVE)
           source:  Every child in the city was happy after the rain.
-          reads:   an agent that is each, in the past, beginning, glad at (a place) when (an event that is extended in time) [gloss: "Every child in the city was happy after the rain."]
+          reads:   Every child was glad in the place at the rain.
+          tree:    an agent that is each, in the past, beginning, glad at (a place) when (an event that is extended in time) [gloss: "Every child in the city was happy after the rain."]
           script:  '\ue005\ue300\ue309\uea07\uec00\ue801\ue007\ue802\ue801\ue00a\ue303\ue802'
 2e6ceafc  $PROCESS.PAST.PUNCTUAL :ARG0 ($AGENT.EXTREME) :ARG1 ($SIGN) :SOURCE ($PLACE.BOUNDED) :GOAL ($AGENT.HARM)
           source:  The king sent a letter to the enemy from the house.
-          reads:   a process that is in the past, instantaneous whose agent is (an agent that is at the limit) whose patient is (a signal) from (a place that is bounded) to (an agent that is harmful) [gloss: "The king sent a letter to the enemy from the house."]
+          reads:   The king rolled the message from the house to the enemy.
+          tree:    a process that is in the past, instantaneous whose agent is (an agent that is at the limit) whose patient is (a signal) from (a place that is bounded) to (an agent that is harmful) [gloss: "The king sent a letter to the enemy from the house."]
           script:  '\ue001\ue300\ue304\ue801\ue005\ue206\ue802\ue801\ue009\ue802\ue801\ue007\ue207\ue802\ue801\ue005\ue705\ue802'
-d11bddff  $ENTITY.NEGATE.QUERY.BAD.WHICH
+8e5b6398  $EVENT.NEGATE.PAST.QUERY.BAD :ARG0 ($ENTITY.WHICH)
           source:  Which server failed?
-          reads:   a thing that is which?, negated (not holding), bad, queried [gloss: "Which server failed?"]
-          script:  '\ue000\ue101\ue603\ue701\uea04'
+          reads:   Which thing failed?
+          tree:    an event that is negated (not holding), in the past, bad, queried whose agent is (a thing that is which?) [gloss: "Which server failed?"]
+          script:  '\ue00a\ue101\ue300\ue603\ue701\ue801\ue000\uea04\ue802'
 c577bab0  $RELATION.PART :ARG0 ($ENTITY.THIS) :ARG1 ($SIGN.FUTURE.PROPOSE)
           source:  This is part of the plan, but nobody trusts the plan.
-          reads:   a relation that is part of whose agent is (a thing that is this) whose patient is (a signal that is in the future, proposed) [gloss: "This is part of the plan, but nobody trusts the plan."]
+          reads:   It is part of the message.
+          tree:    a relation that is part of whose agent is (a thing that is this) whose patient is (a signal that is in the future, proposed) [gloss: "This is part of the plan, but nobody trusts the plan."]
           script:  '\ue003\ue903\ue801\ue000\uea02\ue802\ue801\ue009\ue302\ue606\ue802'
-08752f87  $STATE.TRUST :ARG0 ($ENTITY) :ARG1 ($SIGN.FUTURE.PROPOSE)
-          bound:   ARG0='nobody'
+de072555  $STATE.TRUST :ARG0 ($AGENT.NONE) :ARG1 ($SIGN.FUTURE.PROPOSE)
           source:  This is part of the plan, but nobody trusts the plan.
-          reads:   a state that is trusting whose agent is (a thing) whose patient is (a signal that is in the future, proposed) [gloss: "This is part of the plan, but nobody trusts the plan."]
-          script:  '\ue006\uec03\ue801\ue000\ue802\ue801\ue009\ue302\ue606\ue802'
-de33049a  $PROCESS.INCREASE.PAST :ARG0 ($AGENT.THAT) :ARG1 ($ENTITY.DURATIVE :SCOPE ($AGENT.SELF)) :TIME ($ENTITY)
-          bound:   TIME='storm'
+          reads:   Nobody trusts the message.
+          tree:    a state that is trusting whose agent is (an agent that is zero) whose patient is (a signal that is in the future, proposed) [gloss: "This is part of the plan, but nobody trusts the plan."]
+          script:  '\ue006\uec03\ue801\ue005\ue200\ue802\ue801\ue009\ue302\ue606\ue802'
+4c563214  $SIGN.PAST.ASSERT :ARG0 ($AGENT.THAT) :ARG1 ($AGENT.SELF :SCOPE ($PROCESS.INCREASE.PAST :ARG0 ($ENTITY.DURATIVE) :TIME ($ENTITY)))
+          bound:   ARG1/SCOPE/TIME='storm'
           source:  She told me that the river rose after the storm.
-          reads:   a process that is rising, in the past whose agent is (an agent that is that) whose patient is (a thing that is extended in time over (an agent that is I/we)) when (a thing) [gloss: "She told me that the river rose after the storm."]
-          script:  '\ue001\ue209\ue300\ue801\ue005\uea03\ue802\ue801\ue000\ue303\ue801\ue005\uea00\ue802\ue802\ue801\ue000\ue802'
-683d09d6  $RELATION.CAUSE :ARG0 ($STATE.NEGATE.KNOWN :SCOPE ($QUANTITY.COST)) :ARG1 ($STATE.NECESSARY.DURATIVE :ARG0 ($GROUP.SELF))
+          reads:   That someone said me.
+          tree:    a signal that is in the past, asserted whose agent is (an agent that is that) whose patient is (an agent that is I/we over (a process that is rising, in the past whose agent is (a thing that is extended in time) when (a thing))) [gloss: "She told me that the river rose after the storm."]
+          script:  '\ue009\ue300\ue600\ue801\ue005\uea03\ue802\ue801\ue005\uea00\ue801\ue001\ue209\ue300\ue801\ue000\ue303\ue802\ue801\ue000\ue802\ue802\ue802'
+d6903efc  $RELATION.CAUSE :ARG0 ($ENTITY.NONE.KNOWN :SCOPE ($QUANTITY.COST)) :ARG1 ($STATE.NECESSARY.DURATIVE :ARG0 ($GROUP.SELF))
           source:  Nothing is known about the cost, so we must wait.
-          reads:   a relation that is causing whose agent is (a state that is known, negated (not holding) over (a quantity that is costly) [gloss: "Nothing is known about the cost, so we must wait."]) whose patient is (a state that is necessary, extended in time whose agent is (a group that is I/we)) [gloss: "Nothing is known about the cost, so we must wait."]
-          script:  '\ue003\ue400\ue801\ue006\ue101\ue500\ue801\ue004\ue706\ue802\ue802\ue801\ue006\ue103\ue303\ue801\ue00b\uea00\ue802\ue802'
+          reads:   Nothing causes we must wait.
+          tree:    a relation that is causing whose agent is (a thing that is known, zero over (a quantity that is costly) [gloss: "Nothing is known about the cost, so we must wait."]) whose patient is (a state that is necessary, extended in time whose agent is (a group that is I/we)) [gloss: "Nothing is known about the cost, so we must wait."]
+          script:  '\ue003\ue400\ue801\ue000\ue200\ue500\ue801\ue004\ue706\ue802\ue802\ue801\ue006\ue103\ue303\ue801\ue00b\uea00\ue802\ue802'
 
-14 clauses, 8 fully composed from primitives, 7 names bound as data, 0 residue tokens, English leakage 6.8%
+14 clauses, 9 fully composed from primitives, 6 names bound as data, 0 residue tokens, English leakage 5.8%

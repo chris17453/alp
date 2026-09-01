@@ -682,7 +682,8 @@ def doc_for_compositions(comps: Sequence[Composition], sources: Sequence[str] | 
                     line += f"   ← {fmt_term(vals[i])}"
                 doc.append(Para(line, mono=True, dim=not english))
                 if english:
-                    doc.append(Para("reads: " + c.reading(), dim=True))
+                    from .realize import realize
+                    doc.append(Para("reads: " + realize(c, vals[i]), dim=True))
         return doc
     for i, c in enumerate(comps):
         if english and sources and i < len(sources) and sources[i]:
@@ -696,7 +697,8 @@ def doc_for_compositions(comps: Sequence[Composition], sources: Sequence[str] | 
             line += f"   ← {fmt_term(vals[i])}"
         doc.append(Para(line, mono=True))
         if english:
-            doc.append(Para("reads: " + c.reading(), dim=True))
+            from .realize import realize
+            doc.append(Para("reads: " + realize(c, vals[i]), dim=True))
         if i < len(comps) - 1:
             doc.append(Rule())
     return doc
@@ -742,8 +744,9 @@ def doc_for_stream(stream, title: str | None = None, alpt_text: str | None = Non
             else:
                 doc.append(_chars([(c, True) for c in comps], cell, theme))
             if english:
+                from .realize import realize
                 for c in comps:
-                    doc.append(Para("reads: " + c.reading(), dim=True))
+                    doc.append(Para("reads: " + realize(c), dim=True))
         doc.append(Spacer(4))
     if alpt_text:
         doc.append(Rule())
@@ -775,11 +778,13 @@ def doc_for_transcript(paragraphs: Sequence[Sequence], title: str | None = None,
         if english:
             for src, trs in para:
                 doc.append(Para(src))
+                from .realize import realize
                 for t in trs:
                     line = f"  {t.composition.sid_hex(8)}  {t.composition.transliterate(8)}"
                     if t.value is not True:
                         line += f"   ← {fmt_term(t.value)}"
                     doc.append(Para(line, mono=True, dim=True))
+                    doc.append(Para("  reads: " + realize(t.composition, t.value), dim=True))
         if pi < len(paragraphs) - 1:
             doc.append(Rule())
     return doc

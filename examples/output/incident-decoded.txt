@@ -23,51 +23,51 @@
   The rollback is permitted.
 @7dcb9559 ASSERT     by ops at 2026-08-31T14:20:13Z
   The rollback is permitted.
-@dce07ac6 AMEND      by ops at 2026-08-31T14:20:14Z
+@8215c6b0 AMEND      by ops at 2026-08-31T14:20:14Z
   The incident was resolved and observed by the operator.
-@6a471271 ASSERT     by ops at 2026-08-31T14:20:15Z
+@845281dd ASSERT     by ops at 2026-08-31T14:20:15Z
   The incident was resolved and observed by the operator.
-@158ee50e AMEND      by ops at 2026-08-31T14:20:16Z
+@03a62853 AMEND      by ops at 2026-08-31T14:20:16Z
   The incident was resolved and observed by the operator.
-@1739c228 ASSERT     by ops at 2026-08-31T14:20:17Z
+@edaed821 ASSERT     by ops at 2026-08-31T14:20:17Z
   The incident was resolved and observed by the operator.
-@b4537693 AMEND      by ops at 2026-08-31T14:20:18Z
+@7c33033b AMEND      by ops at 2026-08-31T14:20:18Z
   Please confirm the customer impact is low.
-@cc5ed0d0 ASSERT     by ops at 2026-08-31T14:20:19Z
+@54d94f8c ASSERT     by ops at 2026-08-31T14:20:19Z
   Please confirm the customer impact is low.
-@1899c844 AMEND      by ops at 2026-08-31T14:20:20Z
+@e1f6c50a AMEND      by ops at 2026-08-31T14:20:20Z
   Zorblat frobnicates the widget.
-@34b346c9 ASSERT     by ops at 2026-08-31T14:20:21Z
+@572cb360 ASSERT     by ops at 2026-08-31T14:20:21Z
   Zorblat frobnicates the widget.  =  {"bind" {"." "zorblat frobnicates widget"}}
-@98d4b56c CHECKPOINT by ops at 2026-08-31T14:20:22Z
-  checkpoint: 11 symbols, digest 984067e8199fea77
+@71dd4de7 CHECKPOINT by ops at 2026-08-31T14:20:22Z
+  checkpoint: 11 symbols, digest 4ec3fd7dc570350b
 $PROCESS.NEGATE.NOW.DURATIVE.BAD
-  = a process that is negated (not holding), at present, extended in time, bad [gloss: "The checkout service is down now."]
-a process that is negated (not holding), at present, extended in time, bad [gloss: "The checkout service is down now."]  =  {"bind" {"." "checkout"}}
+  = The failed service is bad now.
+The failed Checkout service is bad now.  =  {"bind" {"." "checkout"}}
 $QUANTITY.INCREASE.DURATIVE :LOC ($PLACE)
-  = a quantity that is rising, extended in time at (a place) [gloss: "Latency is spiking in the eu region."]
-a quantity that is rising, extended in time at (a place) [gloss: "Latency is spiking in the eu region."]  =  {"bind" {"LOC" "eu"}}
+  = The latency is rising in the place.
+The latency is rising in EU.  =  {"bind" {"LOC" "eu"}}
 $PROPERTY.HIGH.PUNCTUAL.REQUIRED
-  = a property that is high, instantaneous, required [gloss: "Urgency is high and the deadline is tomorrow."]
-a property that is high, instantaneous, required [gloss: "Urgency is high and the deadline is tomorrow."]
+  = The urgency is high.
+The urgency is high.
 $MOMENT.BOUNDED.FUTURE.PUNCTUAL
-  = a moment that is bounded, in the future, instantaneous [gloss: "Urgency is high and the deadline is tomorrow."]
-a moment that is bounded, in the future, instantaneous [gloss: "Urgency is high and the deadline is tomorrow."]
+  = The second will be limited.
+The second will be limited.
 $RELATION.PAST.CAUSE.INFERRED :ARG0 ($EVENT.PUNCTUAL) :ARG1 ($STATE.NEGATE.BAD)
-  = a relation that is inferred, in the past, causing whose agent is (an event that is instantaneous) whose patient is (a state that is negated (not holding), bad) [gloss: "We suspect the deploy caused the outage."]
-a relation that is inferred, in the past, causing whose agent is (an event that is instantaneous) whose patient is (a state that is negated (not holding), bad) [gloss: "We suspect the deploy caused the outage."]
+  = The deployment apparently caused the outage.
+The deployment apparently caused the outage.
 $PROCESS.PERMITTED.PAST
-  = a process that is permitted, in the past [gloss: "The rollback is permitted."]
-a process that is permitted, in the past [gloss: "The rollback is permitted."]
-$EVENT.PAST.END.GOOD :ARG0 ($EVENT.NOW.BAD)
-  = an event that is in the past, ending, good whose agent is (an event that is at present, bad) [gloss: "The incident was resolved and observed by the operator."]
-an event that is in the past, ending, good whose agent is (an event that is at present, bad) [gloss: "The incident was resolved and observed by the operator."]
-$STATE.OBSERVED :ARG0 ($AGENT)
-  = a state that is observed whose agent is (an agent) [gloss: "The incident was resolved and observed by the operator."]
-a state that is observed whose agent is (an agent) [gloss: "The incident was resolved and observed by the operator."]
+  = The process was permitted.
+The process was permitted.
+$EVENT.PAST.END.GOOD :ARG1 ($EVENT.NOW.BAD)
+  = Resolve the error.
+Resolve the error.
+$EVENT.OBSERVED.AND :ARG0 ($AGENT)
+  = The someone happens.
+The someone happens.
 $SIGN.KNOWN.ASSERT.REQUEST :ARG1 ($RELATION.LOW.CAUSE.HARM :SCOPE ($AGENT))
-  = a signal that is known, asserted, requested whose patient is (a relation that is low, causing, harmful over (an agent)) [gloss: "Please confirm the customer impact is low."]
-a signal that is known, asserted, requested whose patient is (a relation that is low, causing, harmful over (an agent)) [gloss: "Please confirm the customer impact is low."]
+  = Please say it causes something of the someone.
+Please say it causes something of the someone.
 $ENTITY
-  = a thing [gloss: "Zorblat frobnicates the widget."]
-a thing [gloss: "Zorblat frobnicates the widget."]  =  {"bind" {"." "zorblat frobnicates widget"}}
+  = The thing.
+Zorblat Frobnicates Widget.  =  {"bind" {"." "zorblat frobnicates widget"}}

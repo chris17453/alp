@@ -33,6 +33,7 @@ from .events import (
 )
 from .lexicon import find_forks
 from .translate import Translator, SimpleTranslator, split_sentences, stats
+from .realize import realize
 
 DEFAULT_LEXICON = Path(os.environ.get("ALP_LEXICON", Path.home() / ".local" / "share" / "alp" / "lexicon.alpt"))
 
@@ -165,7 +166,8 @@ def _print_translations(results, args) -> None:
             print(f"{' ' * width}  residue: {' '.join(r.unconsumed)}")
         if args.verbose:
             print(f"{' ' * width}  source:  {r.source}")
-            print(f"{' ' * width}  reads:   {c.reading()}")
+            print(f"{' ' * width}  reads:   {realize(c, r.value)}")
+            print(f"{' ' * width}  tree:    {c.reading()}")
             print(f"{' ' * width}  script:  {c.script()!r}")
 
 
@@ -258,7 +260,7 @@ def cmd_decode(args) -> int:
             for c in e.compositions():
                 if args.readings or not c.gloss:
                     print(f"{ind}{c.transliterate(8)}")
-                    print(f"{ind}  = {c.reading()}")
+                    print(f"{ind}  = {realize(c)}")
                 else:
                     print(f"{ind}{c.gloss}")
         elif e.type == EventType.ASSERT:
@@ -267,7 +269,7 @@ def cmd_decode(args) -> int:
                 if sym is None:
                     desc = f"#{pair[0].hex[:8]} (unknown symbol)"
                 elif args.readings or not sym.gloss:
-                    desc = sym.reading()
+                    desc = realize(sym, pair[1])
                 else:
                     desc = sym.gloss
                 print(f"{ind}{desc}{_describe_value(pair[1])}")
@@ -463,7 +465,7 @@ def cmd_transcribe(args) -> int:
                 lines.append(f"    {t.composition.sid_hex(8)}  {t.composition.transliterate(8)}")
                 if t.value is not True:
                     lines.append(f"    bound: " + "  ".join(f"{k}={alpt.fmt_term(v)}" for k, v in t.value["bind"].items()))
-                lines.append(f"    reads: {t.composition.reading()}")
+                lines.append(f"    reads: {realize(t.composition, t.value)}")
                 if t.unconsumed:
                     lines.append(f"    residue: {' '.join(t.unconsumed)}")
         lines.append("")

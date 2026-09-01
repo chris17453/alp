@@ -2,7 +2,7 @@ profile        SID-128
 events         22  AMEND=10 ASSERT=10 CHECKPOINT=1 JOIN=1
 symbols        11  residue-bearing=1
 assertions     10
-ALP/B bytes    4018
-ALP/T bytes    9011
-state digest   984067e8199fea77e5de71c99b13dff5d1bce70da70a40e2685eb26d23145467
+ALP/B bytes    4024
+ALP/T bytes    9019
+state digest   4ec3fd7dc570350b6e245d5eefac492c1582e7ed0640bf8f716fd963390b17d0
 fork candidates 0

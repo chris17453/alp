@@ -121,6 +121,14 @@ become roles (LOC, TIME, SOURCE, GOAL, PURPOSE, MANNER, SCOPE, MEASURE …);
 causal, conditional and disjunctive connectives become RELATION / CONDITION /
 OR structure; pronouns become deixis (SELF, ADDRESSEE, THIS, THAT, WHICH).
 
+And back again — `alp.realize` reads a tree and its bound values out as a
+sentence, recovering content words by reverse lookup against the lexicon
+(`$STATE.NEGATE.BAD` → "outage", `$PROCESS.REPEAT.BEGIN` → "restart"), so a
+transcript is legible without its source: *"The deployment apparently caused
+the outage."*, *"I need the Python message that restarts the service if the
+latency of the error is above 5 %."*  What the composition does not encode
+(server vs host) comes back as the head's generic noun — the honest result.
+
 **English never enters a symbol.**  Everything that can only be named or
 counted — people, places, numbers, measurements, dates — is a *literal bound to
 a role* at ASSERT time (§5.4), never a primitive.  The symbol for "12 servers
@@ -185,6 +193,11 @@ uv run alp verify notes.alpt
 uv run alp forks notes.alpb                            # §12.6 synonymy-fork candidates
 ```
 
+[`docs/language-reference.md`](docs/language-reference.md) is the reference:
+compositions, inventory v2 with each class's script treatment, roles, the
+idioms the translator produces, literals and binding, ALP/T, events, how to
+read a character, and the commands.
+
 ## Package
 
 | Module | What it does |
@@ -194,7 +207,8 @@ uv run alp forks notes.alpb                            # §12.6 synonymy-fork ca
 | `alp.composition` | Composition records, canonical form, SID, transliteration parser, English readings |
 | `alp.script` | **The character script**: composer, numerals, cartouches, seals, running text, chart |
 | `alp.glyphs` | One standalone glyph per primitive (expanded block form, key, SVG) |
-| `alp.translate` | `Translator` (compositional; literals bound as data) and `SimpleTranslator` (RFC Appendix E) |
+| `alp.translate` | `Translator` (compositional; literals bound as data; relative clauses, passives, coordination fragments, anaphora refs) and `SimpleTranslator` (RFC Appendix E) |
+| `alp.realize` | ALP → English: reverse-lexicon surface realizer used by `decode`, `transcribe` and the transcript images |
 | `alp.events` | Frames, EIDs, causal DAG, frontier, fold with EID tiebreak, CHECKPOINT digests, profiles, `reprofile` |
 | `alp.alpt` | ALP/T writer + parser, byte-identical round trip, SID/EID mismatch detection |
 | `alp.lexicon` | Structural near-duplicate scan for synonymy forks (§12.6) |

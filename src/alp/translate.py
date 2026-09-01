@@ -348,7 +348,7 @@ CUE_LEXICON: dict[str, str] = {
     "important": "REQUIRED", "necessary": "NECESSARY", "essential": "NECESSARY",
 }
 
-NEGATORS = {"not", "no", "never", "down", "failed", "unavailable", "offline", "without", "nothing", "cannot", "isnt", "isn't", "dont", "don't", "wont", "won't", "nor", "neither"}
+NEGATORS = {"not", "no", "never", "down", "unavailable", "offline", "without", "cannot", "isnt", "isn't", "dont", "don't", "wont", "won't", "nor", "neither"}
 COPULA = {"is", "are", "am", "was", "were", "be", "been", "being", "seems", "looks", "remains", "stays", "gets", "got", "become", "became"}
 AUXILIARIES = {"do", "does", "did", "has", "have", "had", "will", "would", "can", "could", "may", "might", "must", "shall", "should"}
 DETERMINERS = {"a", "an", "the", "some", "any", "each"}
@@ -359,6 +359,7 @@ PRONOUNS = {"we": ("GROUP", "SELF"), "i": ("AGENT", "SELF"), "me": ("AGENT", "SE
             "this": ("ENTITY", "THIS"), "that": ("ENTITY", "THAT"), "these": ("GROUP", "THIS"), "those": ("GROUP", "THAT"),
             "someone": ("AGENT", "ANY"), "anyone": ("AGENT", "ANY"), "everyone": ("GROUP", "EACH"), "everything": ("GROUP", "EACH"),
             "something": ("ENTITY", "ANY"), "anything": ("ENTITY", "ANY"), "nothing": ("ENTITY", "NONE"),
+            "nobody": ("AGENT", "NONE"), "noone": ("AGENT", "NONE"), "no-one": ("AGENT", "NONE"),
             "myself": ("AGENT", "SELF"), "ourselves": ("GROUP", "SELF"), "yourself": ("AGENT", "ADDRESSEE")}
 PREPOSITION_ROLE: dict[str, str] = {
     "in": "LOC", "at": "LOC", "on": "LOC", "within": "LOC", "across": "LOC", "inside": "LOC", "near": "LOC",
@@ -569,6 +570,7 @@ class _NP:
     number: float | int | None = None
     unit: str | None = None
     time: str | None = None
+    ref: bytes | None = None                 # anaphoric reference to an earlier symbol
 
     def empty(self) -> bool:
         return (self.head is None and not self.mods and not self.names and not self.roles
@@ -588,6 +590,7 @@ class Translator:
         self.verbs = dict(verb_lexicon or VERB_LEXICON)
         self.cues = dict(cue_lexicon or CUE_LEXICON)
         self._literals: dict[str, Any] = {}
+        self._last_sid: bytes | None = None          # discourse context for it/this/that
 
     # -- lexical lookup ----------------------------------------------------------
     def _lookup(self, w: str) -> tuple[str, Any, list[str]] | None:
@@ -653,6 +656,8 @@ class Translator:
         after_verb = False
         negate_next = False
         interjection_only = False
+        passive = False
+        anaphora: list[_NP] = []
 
         def attach(mods: set, target: _NP) -> None:
             target.mods |= mods
@@ -666,6 +671,15 @@ class Translator:
         while i < len(toks):
             t = toks[i]
             i += 1
+            if interjection_only and t not in INTERJECTIONS and (t in POSSESSIVES or t in PRONOUNS or t in DETERMINERS or self._lookup(t)):
+                # "Hi, my name is Sally": the greeting is its own utterance; hand the rest back
+                rest = toks[i - 1:]
+                greet = subject
+                sub, c2, u2 = self._parse_clause(rest)
+                consumed += c2
+                unconsumed += u2
+                greet.roles[inv.ROLES["ARG1"]] = sub
+                return greet, consumed, unconsumed
             if t in INTERJECTIONS and (i == 1 or t in ("thanks", "thank", "sorry", "please", "welcome", "congratulations")) \
                     and not (t == "no" and i < len(toks) and toks[i] not in (",", "?")) and t not in ("help",) or (t in INTERJECTIONS and len(toks) == 1):
                 consumed.append(t)
@@ -702,6 +716,19 @@ class Translator:
                 if t in self.cues:
                     clause_mods.add(pid(self.cues[t]))
                 continue
+            if t in ("that", "which", "who") and cur.head is not None and i < len(toks):
+                rest = toks[i:]
+                if any((self._lookup(w) or ("", None, None))[0] in ("verb", "causal") or w in COPULA or w in AUXILIARIES for w in rest[:3]):
+                    consumed.append(t)
+                    sub, c2, u2 = self._parse_clause(rest)
+                    consumed += c2
+                    unconsumed += u2
+                    if sub.head is not None and not sub.empty():
+                        # the relative clause's subject is the noun itself: fold X in as ARG0 if the clause lacks one
+                        if inv.ROLES["ARG0"] not in sub.roles:
+                            sub.roles[inv.ROLES["ARG0"]] = _NP(head=cur.head, mods={m for m in cur.mods if isinstance(m, Pid) and m.cls == inv.CLASS_DEICTIC})
+                        cur.roles[inv.ROLES["SCOPE"]] = sub
+                    break
             if t in DETERMINERS or t in FILLERS:
                 consumed.append(t)
                 continue
@@ -721,15 +748,6 @@ class Translator:
                     continue
                 if t not in self.verbs:
                     continue
-            if interjection_only and (t in POSSESSIVES or t in PRONOUNS or t in DETERMINERS or self._lookup(t)):
-                # "Hi, my name is Sally": the greeting is its own utterance; hand the rest back
-                rest = toks[i - 1:]
-                greet = subject
-                sub, c2, u2 = self._parse_clause(rest)
-                consumed += c2
-                unconsumed += u2
-                greet.roles[inv.ROLES["ARG1"]] = sub
-                return greet, consumed, unconsumed
             if t in COPULA:
                 consumed.append(t)
                 if t in ("was", "were"):
@@ -788,6 +806,8 @@ class Translator:
                 if target.head is None:
                     target.head = pid(head_name)
                 target.mods.add(pid(deix))
+                if t in ("it", "this", "that", "these", "those", "they", "them"):
+                    anaphora.append(target)
                 if negate_next:
                     target.mods.add(pid("NEGATE"))
                     negate_next = False
@@ -925,6 +945,8 @@ class Translator:
                 continue
             if kind == "causal":
                 causal = payload
+                if after_copula and "PAST" in implied:
+                    passive = True
                 if implied:
                     clause_mods |= {pid(x) for x in implied}
                 if negate_next:
@@ -943,6 +965,8 @@ class Translator:
                 continue
             if kind == "verb":
                 head_name, baseline = payload
+                if after_copula and "PAST" in implied and pred is None:
+                    passive = True
                 pred = _NP(head=pid(head_name), mods={pid(x) for x in baseline} | {pid(x) for x in implied} | pending_mods)
                 pending_mods = set()
                 pred.words.append(t)
@@ -960,22 +984,44 @@ class Translator:
             (pred or subject).mods.add(pid("NEGATE"))
 
         # assemble
+        self._anaphora = anaphora
         if causal is not None:
             rel = _NP(head=pid("RELATION"), mods={pid(causal)} | clause_mods)
-            if not subject.empty():
-                rel.roles[inv.ROLES["ARG0"]] = subject
-            if not obj.empty():
-                rel.roles[inv.ROLES["ARG1"]] = obj
+            by_np = subject.roles.pop(inv.ROLES["ARG0"], None) or obj.roles.pop(inv.ROLES["ARG0"], None)
+            if passive:
+                if not subject.empty():
+                    rel.roles[inv.ROLES["ARG1"]] = subject
+                if by_np is not None and not by_np.empty():
+                    rel.roles[inv.ROLES["ARG0"]] = by_np
+                elif not obj.empty():
+                    rel.roles[inv.ROLES["ARG0"]] = obj
+            else:
+                if by_np is not None:
+                    subject.roles[inv.ROLES["ARG0"]] = by_np
+                if not subject.empty():
+                    rel.roles[inv.ROLES["ARG0"]] = subject
+                if not obj.empty():
+                    rel.roles[inv.ROLES["ARG1"]] = obj
             if pred is not None:
                 rel.roles.setdefault(inv.ROLES["ARG1"], pred)
             return rel, consumed, unconsumed
         if pred is not None:
             pred.mods |= clause_mods
-            # subject-verb-object: mental-state verbs make the object the content (ARG1)
-            if not subject.empty():
-                pred.roles[inv.ROLES["ARG0"]] = subject
-            if not obj.empty():
-                pred.roles[inv.ROLES["ARG1"]] = obj
+            by_np = pred.roles.pop(inv.ROLES["ARG0"], None)
+            if passive:
+                if not subject.empty():
+                    pred.roles[inv.ROLES["ARG1"]] = subject
+                if by_np is not None and not by_np.empty():
+                    pred.roles[inv.ROLES["ARG0"]] = by_np
+                if not obj.empty():
+                    pred.roles.setdefault(inv.ROLES["ARG2"], obj)
+            else:
+                if by_np is not None:
+                    pred.roles[inv.ROLES["ARG0"]] = by_np
+                if not subject.empty():
+                    pred.roles[inv.ROLES["ARG0"]] = subject
+                if not obj.empty():
+                    pred.roles[inv.ROLES["ARG1"]] = obj
             return pred, consumed, unconsumed
         subject.mods |= clause_mods
         if not obj.empty():
@@ -1016,6 +1062,9 @@ class Translator:
                 residue = " ".join(np.names)
             elif self.names_mode == "drop":
                 residue_words.extend(np.names)
+        if np.ref is not None:
+            from .alpb import Ref, REF_SID
+            self._literals[key] = Ref(REF_SID, np.ref)
         if np.number is not None or np.unit is not None or np.time is not None:
             lit: dict[str, Any] = {}
             if np.number is not None:
@@ -1042,11 +1091,25 @@ class Translator:
         prev: Translation | None = None
         pending_cond: Composition | None = None
         pending_cond_names: tuple = ({}, {})
+        prev_tree: _NP | None = None
         for conn, ctoks in clauses:
             tree, consumed, unconsumed = self._parse_clause(ctoks)
+            # "…12 servers in Berlin and 3 in Tokyo": a verbless fragment after AND continues the previous object
+            if conn == "AND" and prev_tree is not None and tree.head is None and not any(
+                    (self._lookup(w) or ("", None, None))[0] in ("verb", "causal") or w in COPULA for w in ctoks):
+                donor = prev_tree.roles.get(inv.ROLES["ARG1"]) or prev_tree
+                tree.head = donor.head
+                tree.mods |= {m for m in donor.mods if isinstance(m, Pid) and m.cls in (inv.CLASS_DEICTIC,)}
+                tree.mods.add(pid("AND"))
+            prev_tree = tree
             names: dict[str, str] = {}
             dropped: list[str] = []
             self._literals = {}
+            # anaphora: a bare it/this/that binds a reference to the previous utterance's symbol
+            if self._last_sid is not None:
+                for np in getattr(self, "_anaphora", []):
+                    if np.head is not None and not np.names and np.number is None:
+                        np.ref = self._last_sid
             comp = self._to_node(tree, "", names, dropped)
             literals = dict(self._literals)
             if tree.empty() and not names:
@@ -1096,6 +1159,8 @@ class Translator:
             comp = comp.with_gloss(gloss)
             prev = Translation(text, comp, consumed, unconsumed, names, literals)
             results.append(prev)
+        if results:
+            self._last_sid = results[-1].composition.sid
         return results
 
     def translate_text(self, text: str) -> list[Translation]:

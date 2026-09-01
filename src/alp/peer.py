@@ -381,7 +381,8 @@ class Peer:
             c = st.symbol(sid)
             if c is None:
                 continue
-            out.append(f"{c.reading()}  =  {value!r}")
+            from .realize import realize
+            out.append(realize(c, value))
         return out
 
 
