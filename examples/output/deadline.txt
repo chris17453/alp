@@ -1,6 +1,0 @@
-sid        851686953bebe58499376e539a8841156ef8350349295e7bb7d47eb47018b25c
-comp       $MOMENT.BOUNDED.FUTURE.PUNCTUAL
-script     '\ue008\ue207\ue302\ue304'
-canonical  a26168c40008616d83c40207c40302c40304  (18 B)
-reads      a moment that is bounded, in the future, instantaneous
-wrote examples/output/deadline.png

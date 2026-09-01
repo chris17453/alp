@@ -20,7 +20,7 @@ from .events import (
     Event, EventType, Flag, AttestLevel, ErrorCode, Stream, State, fold, toposort,
     agent_sid, agent_symbol, new_stream_id, read_frames, write_frames,
 )
-from . import alpt, render, glyphs, lexicon
+from . import alpt, render, lexicon, script
 
 __version__ = "0.1.0"
 
@@ -31,5 +31,5 @@ __all__ = [
     "Translator", "SimpleTranslator", "Translation", "TranslationStats", "stats", "split_sentences",
     "Event", "EventType", "Flag", "AttestLevel", "ErrorCode", "Stream", "State", "fold", "toposort",
     "agent_sid", "agent_symbol", "new_stream_id", "read_frames", "write_frames",
-    "alpt", "render", "glyphs", "lexicon", "__version__",
+    "alpt", "render", "lexicon", "script", "__version__",
 ]

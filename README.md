@@ -7,7 +7,7 @@ symbol is identified by the hash of its tree; symbols travel over an
 append-only causal event stream; and the language has a written **script** in
 which one composed symbol is one character.
 
-![character chart](examples/output/character-chart.png)
+![character chart](examples/output/01-character-chart.png)
 
 ## The script
 
@@ -55,13 +55,13 @@ How a character is put together follows hanzi practice
   layout as vector; `alp.svg.character_svgs` gives one SVG per character for a
   font pipeline.
 
-`examples/output/root-cause.png` — *"deploy 4471 is the suspected cause of the outage"*:
+`examples/output/03-one-word.png` — *"deploy is the suspected, disputed cause of the outage"*:
 
-![root cause](examples/output/root-cause.png)
+![one word](examples/output/03-one-word.png)
 
-A whole text is a few lines of characters (`examples/output/complex-script.png`):
+A whole text is a few lines of characters (`examples/output/04-complex-script.png`):
 
-![complex thoughts](examples/output/complex-script.png)
+![complex thoughts](examples/output/04-complex-script.png)
 
 ## Running the protocol
 
@@ -93,13 +93,13 @@ letter: 10 utterances in 3 paragraphs -> out/
 writes `letter-script.png` (script only), `letter-transcript.png/.pdf`
 (each paragraph as script, then every sentence with its tree and bound
 values), `letter.alpt` / `letter.alpb` (the stream) and
-`letter-transcript.txt`.  `examples/output/document-*` is the transcript of
+`letter-transcript.txt`.  `examples/output/06-document-*` is the transcript of
 [`examples/document.txt`](examples/document.txt) — *"Hi, my name is Sally. I
 work on the payments team in Berlin. The server broke yesterday at 3:00 … I
 need a python script that restarts the service if the error rate rises above
 5%. Please send it to me before Friday. Thanks!"*:
 
-![document transcript](examples/output/document-transcript.png)
+![document transcript](examples/output/06-document-transcript.png)
 
 ## What English becomes
 
@@ -157,21 +157,19 @@ and codepoint.
 
 ## Examples you can look at
 
-`examples/output/` (regenerate with `sh examples/make_examples.sh`):
+`examples/output/` is a curated set (regenerate with `sh examples/make_examples.sh`):
 
 | File | What it is |
 |---|---|
-| [`character-chart.png`](examples/output/character-chart.png) / `.pdf` | The script: twelve heads, then every modifier class as a transformation of one head, then numerals, cartouches, a seal, a unit |
-| [`glyph-key.png`](examples/output/glyph-key.png), [`glyph-sheet.svg`](examples/output/glyph-sheet.svg) | Every primitive with name, sense, codepoint (the only place English appears) |
-| [`urgency.png`](examples/output/urgency.png) [`deadline.png`](examples/output/deadline.png) [`outage.png`](examples/output/outage.png) [`escalate.png`](examples/output/escalate.png) [`root-cause.png`](examples/output/root-cause.png) [`blast-radius.png`](examples/output/blast-radius.png) | RFC Appendix A compositions as single large characters |
-| [`complex-script.png`](examples/output/complex-script.png), [`story-script.png`](examples/output/story-script.png), [`incident-script.png`](examples/output/incident-script.png) / `.pdf` | Three English texts as running script with the ALP/T listing beneath |
-| `*-script-with-english.*` | The same, one utterance per row with source sentence and generated reading (`--english --style each`) |
-| [`complex-translation.txt`](examples/output/complex-translation.txt) etc. | Trees, bound literals, leakage stats |
-| [`story-blocks-expanded.png`](examples/output/story-blocks-expanded.png) | The expanded §6.2 block form (one glyph per primitive) for comparison |
-| [`incident.alpb`](examples/output/incident.alpb) → [`incident.alpt`](examples/output/incident.alpt) → [`incident-conversation.png`](examples/output/incident-conversation.png) | A stream in binary, in text, and read as a conversation |
-| [`incident-audit.pdf`](examples/output/incident-audit.pdf), `incident-decoded.txt`, `incident-verify.txt`, `incident-stats.txt`, `incident-forks.txt`, `incident-archive-sid256.alpt` | Audit, ALP → English, hash/round-trip check, sizes, fork scan, SID-256 archive |
-| [`appendix-d.alpt`](examples/output/appendix-d.alpt) / `.alpb` / [`.pdf`](examples/output/appendix-d.pdf) / `.png` | The RFC's worked 23-event conversation with real hashes |
-| [`document-script.png`](examples/output/document-script.png), [`document-transcript.png`](examples/output/document-transcript.png) / `.pdf` / [`.txt`](examples/output/document-transcript.txt), `document.alpt` / `.alpb` | `alp transcribe` of an ordinary letter: greeting, self-introduction, incident, request |
+| [`01-character-chart.png`](examples/output/01-character-chart.png) | The script: twelve heads; seeds and scaling rows; every modifier class as a transformation of one head; numerals, cartouches, a seal, a unit |
+| [`02-key.png`](examples/output/02-key.png) | Every primitive drawn *with the script* beside its name, class and sense — the only place English appears |
+| [`03-one-word.png`](examples/output/03-one-word.png) | One composition large: *deploy is the suspected, disputed cause of the outage* |
+| [`04-complex-script.png`](examples/output/04-complex-script.png) / [`.svg`](examples/output/04-complex-script.svg) | Twelve sentences of mixed content as running script, with the ALP/T listing |
+| [`05-complex-with-english.png`](examples/output/05-complex-with-english.png), [`05-complex-translation.txt`](examples/output/05-complex-translation.txt) | The same, one utterance per row with source, tree, bound values and the realizer's reading |
+| [`06-document-transcript.png`](examples/output/06-document-transcript.png) / `.pdf` / [`.txt`](examples/output/06-document-transcript.txt), `06-document.alpt` / `.alpb` | `alp transcribe` of a letter: English → ALP → English |
+| [`07-incident.alpb`](examples/output/07-incident.alpb) → [`07-incident.alpt`](examples/output/07-incident.alpt), [`07-incident-audit.pdf`](examples/output/07-incident-audit.pdf), `07-incident-verify.txt` | A stream in binary and lossless text, its audit document, hash/round-trip check |
+| [`08-two-agents.alpt`](examples/output/08-two-agents.alpt) / [`.log`](examples/output/08-two-agents.log) / `.png` | Two peers running the protocol: inline AMEND, buffered EXPAND/GROUND, challenge, REGROUND, verified CHECKPOINT, model substitution |
+| [`09-appendix-d.alpt`](examples/output/09-appendix-d.alpt) | The RFC's worked 23-event conversation with real hashes |
 
 ## Install and run
 
@@ -179,7 +177,7 @@ and codepoint.
 uv sync
 uv run pytest                                          # 50 tests
 uv run alp translate "urgency is high" --stats         # English -> tree
-uv run alp render -f notes.txt --png notes.png         # English -> script   (--english, --style each|block, --cell N, --pdf)
+uv run alp render -f notes.txt --png notes.png         # English -> script   (--english, --style each, --cell N, --pdf, --svg)
 uv run alp transcribe -f letter.txt -o out/            # document -> script + transcript + stream
 uv run alp compose '$STATE.NEGATE.NOW.BAD :SCOPE $PROCESS' --png outage.png --cell 160
 uv run alp chart --png chart.png                       # the character chart
@@ -206,13 +204,12 @@ read a character, and the commands.
 | `alp.inventory` | Inventory v2: primitives, classes, roles, PUA codepoints; `V1_PRIMITIVES` is the RFC set |
 | `alp.composition` | Composition records, canonical form, SID, transliteration parser, English readings |
 | `alp.script` | **The character script**: composer, numerals, cartouches, seals, running text, chart |
-| `alp.glyphs` | One standalone glyph per primitive (expanded block form, key, SVG) |
 | `alp.translate` | `Translator` (compositional; literals bound as data; relative clauses, passives, coordination fragments, anaphora refs) and `SimpleTranslator` (RFC Appendix E) |
 | `alp.realize` | ALP → English: reverse-lexicon surface realizer used by `decode`, `transcribe` and the transcript images |
 | `alp.events` | Frames, EIDs, causal DAG, frontier, fold with EID tiebreak, CHECKPOINT digests, profiles, `reprofile` |
 | `alp.alpt` | ALP/T writer + parser, byte-identical round trip, SID/EID mismatch detection |
 | `alp.lexicon` | Structural near-duplicate scan for synonymy forks (§12.6) |
-| `alp.render` | Documents: running script, per-utterance rows, expanded blocks; PNG (Pillow) and PDF (reportlab) |
+| `alp.render` | Documents: running script, per-utterance rows, transcripts; PNG (Pillow) and PDF (reportlab) |
 | `alp.svg` | SVG backend for the script (same layout as PNG); per-character SVGs for a font |
 | `alp.peer` | A running participant: buffering/EXPAND/GROUND, ATTEST and challenges, CHECKPOINT verification, rate limits, model substitution |
 | `alp.cli` | `translate transcribe encode decode export import verify render compose chart key forks lexicon stats inventory` |

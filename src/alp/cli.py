@@ -7,7 +7,7 @@
     alp import notes.alpt -o notes.alpb          # ALP/T -> ALP/B
     alp render notes.alpt --pdf audit.pdf
     alp compose '$PROPERTY.HIGH.PUNCTUAL.REQUIRED' --png urgency.png
-    alp key --png key.png                        # the glyph key (the only English)
+    alp key --png key.png                        # the key: every primitive in the script, with name and sense
     alp forks notes.alpt                         # synonymy-fork candidates (§12.6)
     alp verify notes.alpb
 """
@@ -360,12 +360,7 @@ def cmd_render(args) -> int:
                                               title=args.title, english=args.english, theme=theme,
                                               values=[getattr(r, "value", True) for r in results],
                                               mode=args.style, cell=args.cell, transliteration=not args.no_translit)
-    if args.linear:
-        comps = [c for item in doc if isinstance(item, render.Blocks) for c in item.comps]
-        comps += [w[0] for item in doc if isinstance(item, render.Chars) for w in item.words if w is not None]
-        render.render_linear(comps, theme=theme).save(args.linear)
-        print(f"wrote {args.linear}")
-    if not (args.png or args.pdf or args.linear):
+    if not (args.png or args.pdf or getattr(args, "svg", None)):
         args.png = "alp.png"
     for p in _emit_images(doc, args, title):
         print(f"wrote {p}")
@@ -410,13 +405,9 @@ def cmd_key(args) -> int:
     theme = "light" if args.theme == "auto" else args.theme
     doc = render.doc_for_inventory(theme)
     if args.svg:
-        from .glyphs import svg_path
-        cells = []
-        for i, (name, p) in enumerate(inv.PRIMITIVES.items()):
-            x, y = (i % 12) * 60, (i // 12) * 60
-            cells.append(f'<g transform="translate({x},{y})">{svg_path(p, 50)}</g>')
-        svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="720" height="{((len(cells) + 11) // 12) * 60}" style="color:#eee;background:#111">' + "".join(cells) + "</svg>"
-        Path(args.svg).write_text(svg)
+        from . import svg as svgmod
+        comps = [Composition(p) for p in inv.by_class(inv.CLASS_ONTOLOGICAL)]
+        Path(args.svg).write_text("\n".join(svgmod.render_char_svg(c) for c in comps))
         print(f"wrote {args.svg}")
     if not (args.png or args.pdf or args.svg):
         args.png = "alp-key.png"
@@ -424,7 +415,7 @@ def cmd_key(args) -> int:
         render.save_png(doc, args.png, theme=theme)
         print(f"wrote {args.png}")
     if args.pdf:
-        render.save_pdf(doc, args.pdf, title="ALP glyph key", theme=theme)
+        render.save_pdf(doc, args.pdf, title="ALP key", theme=theme)
         print(f"wrote {args.pdf}")
     return 0
 
@@ -568,8 +559,8 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--title", help="document title")
         sp.add_argument("--theme", choices=["auto", "dark", "light"], default="auto", help="auto = dark PNG, light PDF")
         sp.add_argument("--english", action="store_true", help="include English source/readings in images (off by default)")
-        sp.add_argument("--style", choices=["text", "each", "block"], default="text",
-                        help="text = running script (compact, default); each = one utterance per row; block = expanded §6.2 blocks")
+        sp.add_argument("--style", choices=["text", "each"], default="text",
+                        help="text = running script (compact, default); each = one utterance per row")
         sp.add_argument("--cell", type=int, default=56, help="character size in px for the script")
         sp.add_argument("--no-translit", action="store_true", help="omit the ALP/T listing under the script")
         sp.add_argument("--frame", choices=["faint", "on", "off"], default="faint", help="em-box around each character")
@@ -640,7 +631,6 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--profile", type=_profile)
     sp.add_argument("--english-input", action="store_true", help="force: treat the file as English text")
     sp.add_argument("--no-blocks", action="store_true", help="stream audit without script blocks")
-    sp.add_argument("--linear", help="also write the §6.4 linear glyph strip to this PNG")
     sp.add_argument("--svg", help="also write the script as SVG (vector)")
     image_outputs(sp)
     sp.set_defaults(func=cmd_render)
@@ -654,12 +644,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("inventory", help="print the primitive inventory")
     sp.add_argument("--json", action="store_true")
-    sp.add_argument("--svg", help="also write the glyph sheet as SVG")
     image_outputs(sp)
     sp.set_defaults(func=cmd_inventory)
 
-    sp = sub.add_parser("key", help="the glyph key: every glyph beside its name (the only English in the script)")
-    sp.add_argument("--svg", help="write the raw glyph sheet as SVG")
+    sp = sub.add_parser("key", help="the key: every primitive drawn with the script beside its name and sense")
+    sp.add_argument("--svg", help="write the twelve heads as SVG characters")
     image_outputs(sp)
     sp.set_defaults(func=cmd_key)
 

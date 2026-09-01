@@ -249,14 +249,11 @@ def test_render_png_and_pdf(tmp_path):
     comps = [Composition(p) for p in by_class(CLASS_ONTOLOGICAL)]
     comps.append(Composition.build("RELATION", "CAUSE", "INFERRED", "NEGATE",
                                    roles={"ARG0": Composition.build("EVENT", "PAST", residue="deploy"), "ARG1": "STATE"}))
-    img = render.render_block(comps[-1])
-    assert img.width > 60 and img.height > 100
     doc = render.doc_for_compositions(comps, title="t")
     render.save_png(doc, str(tmp_path / "a.png"))
     assert (tmp_path / "a.png").stat().st_size > 1000
     pdf = render.render_pdf(doc)
     assert pdf.startswith(b"%PDF")
-    render.render_linear(comps).save(str(tmp_path / "lin.png"))
     render.save_png(render.doc_for_inventory(), str(tmp_path / "key.png"), theme="light")
     s, _ = _demo_stream(16)
     render.save_pdf(render.doc_for_stream(s, alpt_text=alpt.dumps(s)), str(tmp_path / "s.pdf"))
@@ -298,15 +295,6 @@ def test_translator_binds_literals_and_uses_v2():
     assert pid("OR") in r.composition.modifiers
 
 
-def test_every_glyph_draws_and_emits_svg():
-    from alp import glyphs
-    from PIL import Image, ImageDraw
-    d = ImageDraw.Draw(Image.new("RGB", (64, 64)))
-    for name in PRIMITIVES:
-        glyphs.draw_glyph(d, name, 4, 4, 56)
-        assert "<" in glyphs.svg_path(name)
-
-
 # -- CLI -------------------------------------------------------------------------------
 
 def _alp(*args, input=None):
@@ -335,8 +323,8 @@ def test_cli_pipeline(tmp_path):
     assert "urgency is high" in r.stdout.lower()
     r = _alp("forks", str(alpb_path))
     assert r.returncode == 0
-    r = _alp("key", "--png", str(tmp_path / "key.png"), "--svg", str(tmp_path / "key.svg"))
-    assert r.returncode == 0 and (tmp_path / "key.svg").exists()
+    r = _alp("key", "--png", str(tmp_path / "key.png"))
+    assert r.returncode == 0 and (tmp_path / "key.png").exists()
     r = _alp("chart", "--png", str(tmp_path / "chart.png"))
     assert r.returncode == 0 and (tmp_path / "chart.png").exists()
     r = _alp("render", str(tmp_path / "x.alpt"), "--png", str(tmp_path / "conv.png"), "--style", "text")

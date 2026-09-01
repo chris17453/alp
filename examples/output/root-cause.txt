@@ -1,6 +1,0 @@
-sid        00a8522bfe25b9a27fe2093f2fa93f6a753f6c7332efa04bb9e47ad50012fa36
-comp       $RELATION.CAUSE.INFERRED.CONTESTED :ARG0 ($EVENT.PAST.PUNCTUAL) :ARG1 ($STATE.NEGATE.BAD :SCOPE $PROCESS)
-script     '\ue003\ue400\ue502\ue504\ue801\ue00a\ue300\ue304\ue802\ue801\ue006\ue101\ue701\ue001\ue802'
-canonical  a36168c40003616d83c40400c40502c405046172a201a26168c4000a616d82c40300c4030402a36168c40006616d82c40101c407016172a104c40001  (60 B)
-reads      a relation that is inferred, contested, causing whose agent is (an event that is in the past, instantaneous) whose patient is (a state that is negated (not holding), bad over a process)
-wrote examples/output/root-cause.png

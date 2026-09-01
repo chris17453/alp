@@ -38,7 +38,6 @@ from typing import Any, Iterable, Sequence, Union
 from PIL import Image, ImageDraw, ImageFont
 
 from .alpb import Pid
-from . import glyphs
 from . import inventory as inv
 from .composition import Composition, Node
 
@@ -115,209 +114,11 @@ def text_size(draw: ImageDraw.ImageDraw, s: str, f) -> tuple[int, int]:
     return box[2] - box[0], box[3] - box[1]
 
 
-# ---------------------------------------------------------------------------
-# Block rendering — the script proper.  No text.  One ink.
-# ---------------------------------------------------------------------------
-
 @dataclass
 class BlockStyle:
-    head: int = 72               # head glyph cell, px
+    """Kept for API compatibility; the expanded block form was retired in favour of the character script."""
+    head: int = 72
     theme: str = "dark"
-    weight: float = 0.06         # stroke width as a fraction of glyph cell
-    frame: bool = True           # draw the rounded card around the block
-    pad: int = 14
-    caption: bool = False        # transliteration under the block (ASCII fallback, §6.5)
-
-    @property
-    def colors(self) -> dict:
-        return THEMES[self.theme]
-
-
-def _mods_by_position(comp: Composition) -> tuple[dict[str, list[Pid]], list[Composition], bool]:
-    buckets: dict[str, list[Pid]] = {k: [] for k in _ORDER}
-    nested: list[Composition] = []
-    negate = False
-    for m in sorted(comp.modifiers, key=lambda n: (0, n.code) if isinstance(n, Pid) else (1, 0)):
-        if isinstance(m, Composition):
-            nested.append(m)
-        elif inv.name_of(m) == "NEGATE":
-            negate = True
-        else:
-            buckets[POSITION.get(m.cls, "left")].append(m)
-    return buckets, nested, negate
-
-
-def measure_block(comp: Composition, st: BlockStyle, depth: int = 0) -> tuple[int, int]:
-    return render_block(comp, st, depth).size
-
-
-def render_block(comp: Composition, style: BlockStyle | None = None, depth: int = 0) -> Image.Image:
-    """Render one composition as a script block."""
-    st = style or BlockStyle()
-    C = st.colors
-    H = st.head if depth == 0 else max(28, int(st.head * 0.62 ** depth))
-    m = max(10, int(H * 0.42))          # modifier mark cell
-    gap = max(3, int(H * 0.08))
-    buckets, nested, negate = _mods_by_position(comp)
-
-    # role slots and nested modifier compositions rendered first (we need sizes)
-    subs: list[tuple[str, Image.Image | None, Any]] = []
-    for code, node in comp.roles:
-        if isinstance(node, Composition):
-            subs.append(("role", render_block(node, BlockStyle(st.head, st.theme, st.weight, False, 6, False), depth + 1), node))
-        else:
-            subs.append(("role", None, node))
-    for n in nested:
-        subs.append(("mod", render_block(n, BlockStyle(st.head, st.theme, st.weight, False, 6, False), depth + 1), n))
-
-    slot = int(m * 1.5)
-    top_w = len(buckets["top"]) * (m + gap)
-    bot_w = len(buckets["bottom"]) * (m + gap)
-    left_h = len(buckets["left"]) * (m + gap)
-    right_h = len(buckets["right"]) * (m + gap)
-    lr_h = len(buckets["lowright"]) * (m + gap)
-    side = m + gap if (buckets["left"] or buckets["right"] or buckets["lowright"]) else 0
-    core_w = max(H + 2 * side, top_w, bot_w)
-    core_h = H + (m + gap if buckets["top"] else 0) + (m + gap if buckets["bottom"] else 0)
-    core_h = max(core_h, left_h, right_h + lr_h)
-
-    stack_h = 0
-    stack_w = 0
-    for kind, img, node in subs:
-        if img is not None:
-            stack_h += img.height + gap
-            stack_w = max(stack_w, img.width + slot // 2)
-        else:
-            stack_h += slot + gap
-            stack_w = max(stack_w, slot)
-    residue_h = (m + gap) if comp.residue is not None else 0
-
-    cap_lines: list[str] = []
-    f_cap = font("mono", max(9, int(H * 0.16)))
-    tmp = ImageDraw.Draw(Image.new("RGB", (1, 1)))
-    if st.caption and depth == 0:
-        cap_lines = [comp.transliterate(8)]
-    cap_h = sum(text_size(tmp, ln, f_cap)[1] + 4 for ln in cap_lines) + (gap if cap_lines else 0)
-    cap_w = max([text_size(tmp, ln, f_cap)[0] for ln in cap_lines] + [0])
-
-    pad = st.pad
-    W = int(max(core_w, stack_w, cap_w) + 2 * pad)
-    Hh = int(core_h + (gap if subs else 0) + stack_h + residue_h + cap_h + 2 * pad)
-    img = Image.new("RGB", (W, Hh), C["bg"])
-    d = ImageDraw.Draw(img)
-    if st.frame and depth == 0:
-        d.rounded_rectangle([0, 0, W - 1, Hh - 1], radius=int(pad * 0.8), outline=C["slot"], width=1)
-
-    cx = W / 2
-    y0 = pad
-    hy = y0 + (m + gap if buckets["top"] else 0)          # head top
-    # centre the core vertically if side columns are taller than the head
-    extra = core_h - (H + (m + gap if buckets["top"] else 0) + (m + gap if buckets["bottom"] else 0))
-    hy += extra / 2
-    hx = cx - H / 2
-    hcy = hy + H / 2
-
-    # head
-    glyphs.draw_glyph(d, comp.head, hx, hy, H, C["ink"], st.weight)
-    if negate:  # the one mark that crosses the glyph
-        w = max(2, int(H * st.weight))
-        d.line([(hx + H * 0.08, hy + H * 0.92), (hx + H * 0.92, hy + H * 0.08)], fill=C["ink"], width=w)
-
-    # marks
-    x = cx - top_w / 2 + gap / 2
-    for p in buckets["top"]:
-        glyphs.draw_glyph(d, p, x, hy - m - gap, m, C["ink"], st.weight)
-        x += m + gap
-    x = cx - bot_w / 2 + gap / 2
-    for p in buckets["bottom"]:
-        glyphs.draw_glyph(d, p, x, hy + H + gap, m, C["ink"], st.weight)
-        x += m + gap
-    y = hcy - left_h / 2 + gap / 2
-    for p in buckets["left"]:
-        glyphs.draw_glyph(d, p, hx - m - gap, y, m, C["ink"], st.weight)
-        y += m + gap
-    y = hcy - (right_h + lr_h) / 2 + gap / 2
-    for p in buckets["right"]:
-        glyphs.draw_glyph(d, p, hx + H + gap, y, m, C["ink"], st.weight)
-        y += m + gap
-    for p in buckets["lowright"]:
-        glyphs.draw_glyph(d, p, hx + H + gap + m * 0.35, y, m, C["ink"], st.weight)
-        y += m + gap
-
-    # role stack: ordered slots beneath the block
-    y = y0 + core_h + gap
-    for kind, sub, node in subs:
-        if sub is not None:
-            x = cx - sub.width / 2
-            img.paste(sub, (int(x), int(y)))
-            d.rounded_rectangle([x - 2, y - 2, x + sub.width + 1, y + sub.height + 1], radius=4,
-                                outline=C["slot"] if kind == "role" else C["dim"], width=1)
-            y += sub.height + gap
-        else:
-            x = cx - slot / 2
-            d.rounded_rectangle([x, y, x + slot, y + slot], radius=3, outline=C["slot"], width=1)
-            if isinstance(node, Pid):
-                glyphs.draw_glyph(d, node, x + slot * 0.15, y + slot * 0.15, slot * 0.7, C["ink"], st.weight)
-            else:  # SID reference
-                glyphs.draw_glyph(d, "REF", x + slot * 0.15, y + slot * 0.15, slot * 0.7, C["ink"], st.weight)
-            y += slot + gap
-    if comp.residue is not None:
-        glyphs.draw_glyph(d, "RESIDUE", cx - m / 2, y, m, C["dim"], st.weight)
-        y += m + gap
-    if cap_lines:
-        y += gap
-        for ln in cap_lines:
-            tw, th = text_size(d, ln, f_cap)
-            d.text((cx - tw / 2, y), ln, font=f_cap, fill=C["text"])
-            y += th + 4
-    return img
-
-
-def render_linear(comps: Sequence[Composition], cell: int = 36, theme: str = "dark", weight: float = 0.07) -> Image.Image:
-    """§6.4 rule 4 fallback: the canonical primitive sequence as a line of glyphs."""
-    C = THEMES[theme]
-    seqs = [c.primitives() for c in comps]
-    n = sum(len(s) for s in seqs) + max(0, len(seqs) - 1)
-    img = Image.new("RGB", (n * cell + cell, cell + 8), C["bg"])
-    d = ImageDraw.Draw(img)
-    x = cell / 2
-    for i, seq in enumerate(seqs):
-        for p in seq:
-            glyphs.draw_glyph(d, p, x + cell * 0.1, 4 + cell * 0.1, cell * 0.8, C["ink"], weight)
-            x += cell
-        if i < len(seqs) - 1:
-            d.line([(x + cell * 0.5, 8), (x + cell * 0.5, cell)], fill=C["dim"], width=1)
-            x += cell
-    return img
-
-
-def render_key(theme: str = "light", cell: int = 40) -> Image.Image:
-    """The glyph key — the one place English appears: glyph, name, sense, class position."""
-    C = THEMES[theme]
-    f = font("sans", 13)
-    f_b = font("bold", 13)
-    f_s = font("sans", 11)
-    rows = []
-    for cls in range(9):
-        rows.append(("hdr", cls))
-        for p in inv.by_class(cls):
-            rows.append(("row", p))
-    h = sum(cell if k == "row" else cell * 0.9 for k, _ in rows) + 40
-    img = Image.new("RGB", (620, int(h)), C["bg"])
-    d = ImageDraw.Draw(img)
-    y = 20
-    for k, v in rows:
-        if k == "hdr":
-            pos = {"top": "above head", "left": "left of head", "right": "right of head", "lowright": "lower right", "bottom": "below head"}.get(POSITION.get(v, ""), "head" if v == 0 else "structural")
-            d.text((20, y + 8), f"class 0x{v:02X}  {inv.CLASS_NAMES[v]}  —  {pos}", font=f_b, fill=C["ink"])
-            y += cell * 0.9
-        else:
-            glyphs.draw_glyph(d, v, 24, y + 4, cell - 8, C["ink"], 0.07)
-            d.text((80, y + 6), inv.name_of(v), font=f, fill=C["ink"])
-            d.text((200, y + 8), inv.SENSES[v], font=f_s, fill=C["text"])
-            d.text((520, y + 8), f"U+{0xE000 + v.code:04X}", font=f_s, fill=C["dim"])
-            y += cell
-    return img
 
 
 # ---------------------------------------------------------------------------
@@ -468,13 +269,11 @@ def render_png(doc: Doc, page: PageSpec | None = None) -> list[Image.Image]:
                 y += h
             y += 4
         elif isinstance(item, Blocks):
-            imgs = [render_block(c, item.style) for c in item.comps]
-            for row in _grid(imgs, inner_w, bg=C["bg"]):
-                if row.width > inner_w:
-                    row = row.resize((inner_w, int(row.height * inner_w / row.width)))
-                ensure(row.height + 10)
-                cur.paste(row, (ps.margin, y))
-                y += row.height + 10
+            item = Chars([(c, True) for c in item.comps], cell=item.style.head, theme=item.style.theme)
+            im = _chars_image(item, inner_w)
+            ensure(im.height + 10)
+            cur.paste(im, (ps.margin, y))
+            y += im.height + 10
         elif isinstance(item, (Img, Chars)):
             im = item.image if isinstance(item, Img) else _chars_image(item, inner_w)
             if im.width > inner_w:
@@ -592,13 +391,13 @@ def render_pdf(doc: Doc, title: str = "ALP", theme: str = "light") -> bytes:
                 y -= size + 4
             y -= 3
         elif isinstance(item, Blocks):
-            imgs = [render_block(cm, item.style) for cm in item.comps]
-            for row in _grid(imgs, int(inner_w * 2), bg=C["bg"]):
-                scale = min(0.5, inner_w / row.width)
-                w, h = row.width * scale, row.height * scale
-                ensure(h + 8)
-                c.drawImage(ImageReader(row), margin, y - h, width=w, height=h)
-                y -= h + 8
+            item = Chars([(cm, True) for cm in item.comps], cell=item.style.head, theme=item.style.theme)
+            im = _chars_image(item, int(inner_w * 2))
+            scale = min(0.5, inner_w / im.width)
+            w, h = im.width * scale, im.height * scale
+            ensure(h + 8)
+            c.drawImage(ImageReader(im), margin, y - h, width=w, height=h)
+            y -= h + 8
         elif isinstance(item, (Img, Chars)):
             im = item.image if isinstance(item, Img) else _chars_image(item, int(inner_w * 2))
             scale = min(0.5, inner_w / im.width)
@@ -656,7 +455,7 @@ def doc_for_compositions(comps: Sequence[Composition], sources: Sequence[str] | 
     mode="text": all utterances flow as running text (compact; one line per source sentence
                  when sources are given), then the ALP/T listing.
     mode="each": one utterance per row with its ALP/T line (and English on request).
-    mode="block": the expanded §6.2 block form (one glyph per primitive, stacked)."""
+    """
     from .alpt import fmt_term
     doc: Doc = []
     if title:
@@ -688,10 +487,7 @@ def doc_for_compositions(comps: Sequence[Composition], sources: Sequence[str] | 
     for i, c in enumerate(comps):
         if english and sources and i < len(sources) and sources[i]:
             doc.append(Para(sources[i]))
-        if mode == "block":
-            doc.append(Blocks([c], style or BlockStyle(theme=theme)))
-        else:
-            doc.append(_chars([(c, vals[i])], cell, theme))
+        doc.append(_chars([(c, vals[i])], cell, theme))
         line = f"!{c.sid_hex(16)}…  {c.transliterate(8)}"
         if vals[i] not in (None, True):
             line += f"   ← {fmt_term(vals[i])}"
@@ -739,10 +535,7 @@ def doc_for_stream(stream, title: str | None = None, alpt_text: str | None = Non
         doc.append(Para("\n".join(event_block(e, author_name=stream.author_name(e.author))[1:]), mono=True, dim=True))
         comps = e.compositions()
         if comps:
-            if mode == "block":
-                doc.append(Blocks(comps, style or BlockStyle(head=56, theme=theme)))
-            else:
-                doc.append(_chars([(c, True) for c in comps], cell, theme))
+            doc.append(_chars([(c, True) for c in comps], cell, theme))
             if english:
                 from .realize import realize
                 for c in comps:
@@ -801,7 +594,54 @@ def doc_for_chart(theme: str = "dark") -> Doc:
 
 
 def doc_for_inventory(theme: str = "light") -> Doc:
-    """The glyph key: every primitive's glyph beside its name and sense."""
-    return [Heading(f"ALP script — glyph key, inventory v{inv.INVENTORY_VERSION}", 1),
-            Para("The only place English appears.  Position around the head encodes class; the glyph encodes the member.", dim=True),
-            Img(render_key(theme))]
+    """The key: every primitive drawn with the character script beside its name and sense."""
+    from . import script
+    return [Heading(f"ALP script — key, inventory v{inv.INVENTORY_VERSION}", 1),
+            Img(script.render_key(script.CharStyle(cell=64, theme=theme, headline=False)))]
+
+
+def doc_for_transcript(paragraphs: Sequence[Sequence], title: str | None = None, theme: str = "dark",
+                       cell: int = 56, english: bool = True) -> Doc:
+    """A transcript of an English document.
+
+    ``paragraphs`` is a list of paragraphs; each paragraph a list of
+    (source_sentence, [Translation, ...]).  Each paragraph renders as running
+    script; with ``english`` the sentences and their trees follow, so a reader
+    can check every character against its source."""
+    from .alpt import fmt_term
+    doc: Doc = []
+    if title:
+        doc.append(Heading(title, 1))
+    for pi, para in enumerate(paragraphs):
+        words: list = []
+        for src, trs in para:
+            for t in trs:
+                words.append((t.composition, t.value))
+        if not words:
+            continue
+        doc.append(_chars(words, cell, theme))
+        if english:
+            for src, trs in para:
+                doc.append(Para(src))
+                from .realize import realize
+                for t in trs:
+                    line = f"  {t.composition.sid_hex(8)}  {t.composition.transliterate(8)}"
+                    if t.value is not True:
+                        line += f"   ← {fmt_term(t.value)}"
+                    doc.append(Para(line, mono=True, dim=True))
+                    doc.append(Para("  reads: " + realize(t.composition, t.value), dim=True))
+        if pi < len(paragraphs) - 1:
+            doc.append(Rule())
+    return doc
+
+
+def doc_for_chart(theme: str = "dark") -> Doc:
+    """The character chart: heads, then every modifier class as a transformation of one head, then literals."""
+    from . import script
+    return [Heading(f"ALP script — character chart, inventory v{inv.INVENTORY_VERSION}", 1),
+            Para("Row 1: the twelve heads.  Following rows: each modifier class applied to one head "
+                 "(modal · scalar · temporal · causal · epistemic · illocutionary · valence · relational · deictic · logical · affect).  "
+                 "Last row: numerals, names (cartouches), a reference seal, a unit.", dim=True),
+            Img(script.render_chart(script.CharStyle(cell=72, theme=theme, frame=True)))]
+
+

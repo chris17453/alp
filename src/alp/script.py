@@ -62,7 +62,7 @@ LOD = ("lod",)
 HEADS: dict[str, list[tuple]] = {
     # a thing that persists: the square, doubled at the corners like a stamped block
     "ENTITY":   [("poly", [(0.4, 0.4), (5.6, 0.4), (5.6, 5.6), (0.4, 5.6)], False),
-                 LOD, ("poly", [(1.5, 1.5), (4.5, 1.5), (4.5, 4.5), (1.5, 4.5)], False)],
+                 LOD, ("seg", 0.4, 3.0, 1.6, 3.0), ("seg", 4.4, 3.0, 5.6, 3.0)],
     # something that unfolds: a bold chevron band pointing forward
     "PROCESS":  [("curve", 0.5, 0.3, 4.6, 1.0, 5.8, 3.0, "na"), ("curve", 5.8, 3.0, 4.6, 5.0, 0.5, 5.7, "pie"),
                  ("curve", 0.5, 1.4, 2.6, 2.0, 3.6, 3.0, "na"), ("curve", 3.6, 3.0, 2.6, 4.0, 0.5, 4.6, "pie"),
@@ -106,10 +106,10 @@ HEAD_POLYS["AGENT"] = [[(0.4, 2.6), (3.0, 0.2), (5.6, 2.6), (5.6, 5.7), (0.4, 5.
 HEAD_POLYS["EVENT"] = [[(3.0, 0.1), (3.6, 2.4), (5.9, 3.0), (3.6, 3.6), (3.0, 5.9), (2.4, 3.6), (0.1, 3.0), (2.4, 2.4)]]
 # heads with interior room for argument seeds (left lobe / right lobe in local coords)
 LOBES: dict[str, tuple[tuple[float, float], tuple[float, float]]] = {
-    "ENTITY": ((0.9, 2.1), (3.3, 2.1)), "PROPERTY": ((1.6, 2.1), (2.8, 2.1)), "RELATION": ((0.7, 2.1), (3.9, 2.1)),
-    "AGENT": ((0.8, 3.2), (3.8, 3.2)), "STATE": ((0.9, 2.1), (3.3, 2.1)), "MOMENT": ((0.6, 3.3), (3.6, 3.3)),
-    "EVENT": ((1.6, 2.1), (2.8, 2.1)),
+    "ENTITY": ((0.9, 2.0), (3.3, 2.0)), "RELATION": ((0.55, 2.0), (4.05, 2.0)),
+    "STATE": ((0.9, 2.0), (3.3, 2.0)), "AGENT": ((0.9, 3.0), (3.3, 3.0)),
 }
+LOBE_MIN_SIDE = 6.4
 
 def _seed_ops() -> dict[str, list[tuple]]:
     """Seeds are the heads as solid silhouettes on a 2×2 grid — the only form
@@ -148,7 +148,7 @@ EPISTEMIC_STROKE = {
 BASE = 7.2            # head box side at scale 1, in grid units
 CX = 8.6              # head centre x (room for the left radical and the right connector)
 HEAD_CY = 8.4         # head centre y
-ENC_MARGIN = 1.0      # clearance between head and enclosure
+ENC_MARGIN = 1.35     # clearance between head and enclosure
 HEADLINE_Y = 0.55     # the word's headline
 CROWN_Y = 2.4         # baseline of the crown zone (rows 1.2-3.2)
 GROUND_Y = 14.0       # the ground line (rows 13.3-14.7 are its zone)
@@ -174,7 +174,7 @@ SCALAR_SHAPE = {
 class CharStyle:
     cell: int = 64                 # px per character
     theme: str = "dark"
-    weight: float = 0.55           # stroke width in grid units
+    weight: float = 0.46           # stroke width in grid units
     wedge: bool = True             # cuneiform-style wedge head at each stroke start
     gap: float = 0.18              # gap between characters of one word, in cells
     word_gap: float = 0.6          # gap between words, in cells
@@ -182,7 +182,7 @@ class CharStyle:
     headline: bool = True          # a line along the top joining the characters of a word (Devanagari style)
     color: bool = True             # modifier classes in their colours; the head in ink
     supersample: int = 3           # render at N× and downsample: soft, blended edges
-    blend: float = 0.86            # ink opacity per stroke; crossings darken like wet ink
+    blend: float = 0.94            # ink opacity per stroke; crossings darken a little
     pressure: bool = True          # brush pressure profiles and a slight bow on long strokes
     grid: bool = False             # faint grid (design aid)
 
@@ -219,7 +219,7 @@ class _Pen:
 
     def __init__(self, draw: ImageDraw.ImageDraw, ox: float, oy: float, unit: float, ink, st: CharStyle) -> None:
         self.d, self.ox, self.oy, self.u, self.ink, self.st = draw, ox, oy, unit, ink, st
-        self.w = max(1.5, st.weight * unit, st.cell / 17)
+        self.w = max(1.5, st.weight * unit, st.cell / 20)
         img = getattr(draw, "_image", None)
         self.img = img if (img is not None and getattr(img, "mode", "") == "RGBA" and st.blend < 1.0) else None
 
@@ -595,19 +595,19 @@ def _layout(pl: "_Plan", has_below_roles: bool, scalar_scale: float) -> _Layout:
     L = _Layout(1.0, HEADLINE_Y + 1.0, GRID - 1.0, GRID - 0.8)
     if pl.valence:
         L.crown = (0, 0, L.y0 + 1.6)
-        L.y0 += 2.6
+        L.y0 += 3.0
     if has_below_roles:
         L.rolerow = (L.y1 - 2.9, 0, 0)
         L.y1 -= 3.6
     if pl.temporal:
         L.ground = (0, 0, L.y1 - 0.9)
-        L.y1 -= 2.3
+        L.y1 -= 2.7
     if pl.illoc:
         L.radical = (L.x0 + 1.0, 0, 0)
-        L.x0 += 2.6
+        L.x0 += 3.0
     if pl.causal or pl.relational:
         L.connector = (0, L.x1, 0)
-        L.x1 -= 3.0
+        L.x1 -= 3.4
     inset = ENC_MARGIN + 0.3 if pl.modal else 0.0
     avail = min(L.x1 - L.x0, L.y1 - L.y0) - 2 * inset
     side = avail * min(1.0, scalar_scale)
@@ -620,13 +620,13 @@ def _layout(pl: "_Plan", has_below_roles: bool, scalar_scale: float) -> _Layout:
         L.enclosure = (hx0 - m, hy0 - m, hx0 + side + m, hy0 + side + m)
     ex0, ey0, ex1, ey1 = L.enclosure if L.enclosure else (hx0, hy0, hx0 + side, hy0 + side)
     if L.crown:
-        L.crown = (ex0 + 0.3, ex1 - 0.3, ey0 - 0.45)
+        L.crown = (ex0 + 0.3, ex1 - 0.3, ey0 - 0.9)
     if L.ground:
-        L.ground = (ex0 - 0.3, ex1 + 0.3, ey1 + 0.75)
+        L.ground = (ex0 - 0.3, ex1 + 0.3, ey1 + 1.1)
     if L.radical:
-        L.radical = (L.radical[0], ey0 + 0.2, ey1 - 0.2)
+        L.radical = (L.radical[0] - 0.2, ey0 + 0.3, ey1 - 0.3)
     if L.connector:
-        L.connector = (ex1 + 0.05, L.connector[1], cy)
+        L.connector = (ex1 + 0.5, L.connector[1], cy)
     if L.rolerow:
         L.rolerow = (L.rolerow[0], ex0 - 0.6, ex1 + 0.6)
     return L
@@ -661,6 +661,9 @@ def draw_char(draw: ImageDraw.ImageDraw, comp: Composition | None, x: float, y: 
     if pl.scalar:
         scalar_scale, fillmode = SCALAR_SHAPE[inv.name_of(pl.scalar[0])]
     lob = LOBES.get(hname)
+    probe = _layout(pl, any(r[0] not in (1, 2) or lob is None for r in roles), scalar_scale)
+    if lob is not None and probe.head[2] < LOBE_MIN_SIDE:
+        lob = None
     below = [r for r in roles if not (lob is not None and r[0] in (1, 2))]
     inside = [r for r in roles if lob is not None and r[0] in (1, 2)]
     L = _layout(pl, bool(below), scalar_scale)
@@ -678,7 +681,7 @@ def draw_char(draw: ImageDraw.ImageDraw, comp: Composition | None, x: float, y: 
         elif dash is None:
             dash = d2
     ep_names = {inv.name_of(e) for e in pl.epistemic}
-    hw = pen.w * wmul
+    hw = pen.w * 1.45 * wmul
     detail = side >= 5.2 and fillmode not in ("full", "half") and not inside and not pl.deictic and not pl.affect and not pl.modal
 
     # -- head ------------------------------------------------------------------------------
@@ -840,9 +843,9 @@ def draw_char(draw: ImageDraw.ImageDraw, comp: Composition | None, x: float, y: 
     inner_ok = part == 0 and side >= 4.6 and fillmode not in ("full", "half")
     msc = max(0.9, side / 7.5)
     if pl.deictic and inner_ok:
-        _deictic_mark(pen, inv.name_of(pl.deictic[0]), cx, hy0 + side * 0.17, K("deictic"), thin, msc)
+        _deictic_mark(pen, inv.name_of(pl.deictic[0]), cx, hy0 + side * 0.22, K("deictic"), thin, msc)
     if pl.affect and inner_ok:
-        _affect_mark(pen, inv.name_of(pl.affect[0]), cx, hy0 + side * 0.85, K("affect"), thin, msc)
+        _affect_mark(pen, inv.name_of(pl.affect[0]), cx, hy0 + side * 0.80, K("affect"), thin, msc)
     ink = C["ink"]
 
     # -- roles: lobes inside; the rest in the role row under the ground --------------------------------
@@ -1023,6 +1026,9 @@ def word_chars(comp: Composition) -> list[tuple]:
         hname = inv.name_of(c.head)
         roles = list(c.roles)
         lob = LOBES.get(hname)
+        probe = _layout(pl, any(r[0] not in (1, 2) or lob is None for r in roles), SCALAR_SHAPE[inv.name_of(pl.scalar[0])][0] if pl.scalar else 1.0)
+        if lob is not None and probe.head[2] < LOBE_MIN_SIDE:
+            lob = None
         inside = [r for r in roles if lob is not None and r[0] in (1, 2)]
         below = [r for r in roles if not (lob is not None and r[0] in (1, 2))]
         if _components(pl, roles, hname) > INK_BUDGET:
@@ -1369,6 +1375,69 @@ def render_text(words: Sequence[Utterance | Composition | None], st: CharStyle |
             x = draw_word(d, comp, x, y, hs, value) + hs.word_gap * hs.cell
         y += line_h * S
     return _down(img, S)
+
+
+def render_key(st: CharStyle | None = None, font=None) -> Image.Image:
+    """The glyph key, drawn with the character script itself: every primitive
+    as the transformation it makes, beside its name, class and sense.  The
+    only place English appears."""
+    from PIL import ImageFont
+    st = st or CharStyle(cell=64, theme="light", frame="faint", headline=False)
+    from dataclasses import replace
+    st = replace(st, supersample=1)
+    C = THEMES[st.theme]
+    if font is None:
+        try:
+            font = ImageFont.truetype("DejaVuSans.ttf", 13)
+            bold = ImageFont.truetype("DejaVuSans-Bold.ttf", 14)
+        except Exception:  # noqa: BLE001
+            font = bold = ImageFont.load_default()
+    else:
+        bold = font
+    rows: list[tuple] = []
+    for cls in range(0, 13):
+        if cls == 8:
+            continue
+        for p in inv.by_class(cls):
+            if cls == 0:
+                comp = Composition(p)
+            elif cls in (4, 9):
+                comp = Composition(inv.pid("RELATION"), frozenset([p]))
+            else:
+                comp = Composition(inv.pid("ENTITY"), frozenset([p]))
+            rows.append((cls, p, comp))
+    cell = st.cell
+    line = cell + 10
+    col_w = 400
+    ncol = 3
+    # lay out by class: a class never splits across columns
+    groups: dict[int, list] = {}
+    for cls, p, comp in rows:
+        groups.setdefault(cls, []).append((p, comp))
+    heights = {cls: 30 + len(items) * line for cls, items in groups.items()}
+    total = sum(heights.values())
+    target = total / ncol
+    cols: list[list[int]] = [[]]
+    acc = 0
+    for cls in groups:
+        if acc + heights[cls] > target * 1.05 and cols[-1] and len(cols) < ncol:
+            cols.append([]); acc = 0
+        cols[-1].append(cls); acc += heights[cls]
+    height = max(sum(heights[c] for c in col) for col in cols) + 40
+    img, d = _canvas(col_w * len(cols) + 20, height, C["bg"])
+    for ci, col in enumerate(cols):
+        x0 = 20 + ci * col_w
+        y = 20
+        for cls in col:
+            d.text((x0, y), f"class 0x{cls:02X}  {inv.CLASS_NAMES[cls]}", font=bold, fill=C["ink"])
+            y += 30
+            for p, comp in groups[cls]:
+                draw_char(d, comp, x0, y, st)
+                d.text((x0 + cell + 12, y + 6), inv.name_of(p), font=bold, fill=C["ink"])
+                d.text((x0 + cell + 12, y + 26), inv.SENSES[p][:44], font=font, fill=C["dim"])
+                d.text((x0 + cell + 12, y + 44), f"U+{0xE000 + p.code:04X}", font=font, fill=C["dim"])
+                y += line
+    return img.convert("RGB")
 
 
 def render_chart(st: CharStyle | None = None) -> Image.Image:
