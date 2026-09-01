@@ -182,8 +182,8 @@ class CharStyle:
     headline: bool = True          # a line along the top joining the characters of a word (Devanagari style)
     color: bool = True             # modifier classes in their colours; the head in ink
     supersample: int = 4           # render at N× and downsample: soft, blended edges
-    blend: float = 0.80            # ink opacity of a stroke's core; halo and body are lighter
-    grain: float = 0.07            # paper grain / dither strength (0 = none)
+    blend: float = 0.74            # ink opacity of a stroke's core; halo and body are lighter
+    grain: float = 0.10            # paper grain / dither strength (0 = none)
     feather: float = 1.0           # edge softness multiplier
     pressure: bool = True          # brush pressure profiles and a slight bow on long strokes
     grid: bool = False             # faint grid (design aid)
@@ -253,7 +253,7 @@ class _Pen:
             self._fill(ring(r), ink)
             return
         a = self.st.blend
-        for mult, alpha in ((1.45, a * 0.14), (1.1, a * 0.5), (0.65, a * 1.0)):
+        for mult, alpha in ((1.8, a * 0.16), (1.3, a * 0.38), (0.9, a * 0.7), (0.55, a * 1.0)):
             self._fill(ring(r * mult), ink, alpha)
 
     def _outline(self, pts, half):
@@ -280,7 +280,7 @@ class _Pen:
             self.d.polygon(self._outline(pts, half), fill=ink)
             return
         a = self.st.blend
-        for mult, alpha in ((1.5, a * 0.14), (1.12, a * 0.5), (0.62, a * 1.0)):
+        for mult, alpha in ((1.9, a * 0.16), (1.35, a * 0.38), (0.9, a * 0.7), (0.5, a * 1.0)):
             self._fill(self._outline(pts, [h * mult for h in half]), ink, alpha)
 
     # -- pressure profiles: half-width as a fraction of w along t in 0..1 ---------
@@ -1346,7 +1346,7 @@ def _down(img: Image.Image, S: int, st: "CharStyle | None" = None) -> Image.Imag
     grain = (st.grain if st else 0.07)
     out = img.convert("RGB")
     if S > 1 and feather > 0:
-        out = out.filter(ImageFilter.GaussianBlur(radius=S * 0.7 * feather))
+        out = out.filter(ImageFilter.GaussianBlur(radius=max(S * 1.1, 1.5) * feather))
     if S > 1:
         out = out.resize((max(1, img.width // S), max(1, img.height // S)), Image.LANCZOS)
     if grain > 0:
