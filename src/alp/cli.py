@@ -177,7 +177,8 @@ def cmd_translate(args) -> int:
         title = args.title or "ALP"
         doc = render.doc_for_compositions([r.composition for r in results], [r.source for r in results],
                                           title=title, english=args.english, theme=_theme(args),
-                                          values=[getattr(r, "value", True) for r in results])
+                                          values=[getattr(r, "value", True) for r in results],
+                                          mode=args.style, cell=args.cell, transliteration=not args.no_translit)
         for p in _emit_images(doc, args, title):
             print(f"wrote {p}", file=sys.stderr)
     if args.lexicon:
@@ -209,11 +210,13 @@ def cmd_encode(args) -> int:
     if args.png or args.pdf:
         title = args.title or "ALP"
         if args.audit:
-            doc = render.doc_for_stream(s, title=title, alpt_text=alpt.dumps(s), theme=_theme(args), english=args.english)
+            doc = render.doc_for_stream(s, title=title, alpt_text=alpt.dumps(s), theme=_theme(args), english=args.english,
+                                        mode=args.style, cell=args.cell)
         else:
             doc = render.doc_for_compositions([r.composition for r in results], [r.source for r in results],
                                               title=title, english=args.english, theme=_theme(args),
-                                              values=[getattr(r, "value", True) for r in results])
+                                              values=[getattr(r, "value", True) for r in results],
+                                              mode=args.style, cell=args.cell, transliteration=not args.no_translit)
         for p in _emit_images(doc, args, title):
             print(f"wrote {p}", file=sys.stderr)
     return 0
@@ -316,7 +319,8 @@ def cmd_render(args) -> int:
             try:
                 s, text = _load_stream(src, args.profile)
                 doc = render.doc_for_stream(s, title=args.title, alpt_text=text or alpt.dumps(s),
-                                            blocks=not args.no_blocks, theme=theme, english=args.english)
+                                            blocks=not args.no_blocks, theme=theme, english=args.english,
+                                            mode=args.style, cell=args.cell)
             except Exception:  # noqa: BLE001
                 if raw.lstrip().startswith(b"%alp/t"):
                     raise
@@ -325,19 +329,23 @@ def cmd_render(args) -> int:
             results = _translator(args).translate_text(text)
             doc = render.doc_for_compositions([r.composition for r in results], [r.source for r in results],
                                               title=args.title, english=args.english, theme=theme,
-                                              values=[getattr(r, "value", True) for r in results])
+                                              values=[getattr(r, "value", True) for r in results],
+                                              mode=args.style, cell=args.cell, transliteration=not args.no_translit)
     else:
         text = " ".join(([src] if src else []) + list(args.text or [])) or _read_text(args)
         if text.lstrip().startswith(("$", "!")):
             c = alpt.parse_composition(text)
-            doc = render.doc_for_compositions([c], title=args.title, english=args.english, theme=theme)
+            doc = render.doc_for_compositions([c], title=args.title, english=args.english, theme=theme,
+                                              mode=args.style, cell=args.cell, transliteration=not args.no_translit)
         else:
             results = _translator(args).translate_text(text)
             doc = render.doc_for_compositions([r.composition for r in results], [r.source for r in results],
                                               title=args.title, english=args.english, theme=theme,
-                                              values=[getattr(r, "value", True) for r in results])
+                                              values=[getattr(r, "value", True) for r in results],
+                                              mode=args.style, cell=args.cell, transliteration=not args.no_translit)
     if args.linear:
         comps = [c for item in doc if isinstance(item, render.Blocks) for c in item.comps]
+        comps += [w[0] for item in doc if isinstance(item, render.Chars) for w in item.words if w is not None]
         render.render_linear(comps, theme=theme).save(args.linear)
         print(f"wrote {args.linear}")
     if not (args.png or args.pdf or args.linear):
@@ -358,7 +366,9 @@ def cmd_compose(args) -> int:
     print(f"reads      {c.reading()}")
     if c.residue_bearing():
         print("note       residue-bearing: not fully derivable from the inventory (§5.5)")
-    for p in _emit_images(render.doc_for_compositions([c], title=args.title, english=args.english, theme=_theme(args)), args, args.title or "ALP"):
+    doc = render.doc_for_compositions([c], title=args.title, english=args.english, theme=_theme(args),
+                                      mode=args.style, cell=max(args.cell, 96), transliteration=not args.no_translit)
+    for p in _emit_images(doc, args, args.title or "ALP"):
         print(f"wrote {p}")
     return 0
 
@@ -399,6 +409,16 @@ def cmd_key(args) -> int:
     if args.pdf:
         render.save_pdf(doc, args.pdf, title="ALP glyph key", theme=theme)
         print(f"wrote {args.pdf}")
+    return 0
+
+
+def cmd_chart(args) -> int:
+    theme = _theme(args)
+    doc = render.doc_for_chart(theme)
+    if not (args.png or args.pdf):
+        args.png = "alp-chart.png"
+    for p in _emit_images(doc, args, "ALP character chart"):
+        print(f"wrote {p}")
     return 0
 
 
@@ -482,6 +502,10 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--title", help="document title")
         sp.add_argument("--theme", choices=["auto", "dark", "light"], default="auto", help="auto = dark PNG, light PDF")
         sp.add_argument("--english", action="store_true", help="include English source/readings in images (off by default)")
+        sp.add_argument("--style", choices=["text", "each", "block"], default="text",
+                        help="text = running script (compact, default); each = one utterance per row; block = expanded §6.2 blocks")
+        sp.add_argument("--cell", type=int, default=56, help="character size in px for the script")
+        sp.add_argument("--no-translit", action="store_true", help="omit the ALP/T listing under the script")
 
     sp = sub.add_parser("translate", help="English -> compositions (no stream)")
     text_inputs(sp)
@@ -565,6 +589,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--svg", help="write the raw glyph sheet as SVG")
     image_outputs(sp)
     sp.set_defaults(func=cmd_key)
+
+    sp = sub.add_parser("chart", help="the character chart: heads, every modifier as a transformation, literals")
+    image_outputs(sp)
+    sp.set_defaults(func=cmd_chart)
 
     sp = sub.add_parser("forks", help="synonymy-fork candidates in a stream or lexicon (§12.6)")
     sp.add_argument("input", help=".alpb / .alpt stream or lexicon file")

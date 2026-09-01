@@ -3,10 +3,10 @@ cbfc4b02  $PROCESS.NEGATE.NOW.DURATIVE.BAD
           source:  The checkout service is down now.
           reads:   a process that is negated (not holding), at present, extended in time, bad [gloss: "The checkout service is down now."]
           script:  '\ue001\ue101\ue301\ue303\ue701'
-48d3aafe  $QUANTITY.INCREASE.DURATIVE :SCOPE ($PLACE)
-          bound:   SCOPE='eu'
+1f35a267  $QUANTITY.INCREASE.DURATIVE :LOC ($PLACE)
+          bound:   LOC='eu'
           source:  Latency is spiking in the eu region.
-          reads:   a quantity that is rising, extended in time over (a place) [gloss: "Latency is spiking in the eu region."]
+          reads:   a quantity that is rising, extended in time at (a place) [gloss: "Latency is spiking in the eu region."]
           script:  '\ue004\ue209\ue303\ue801\ue007\ue802'
 037fac5d  $PROPERTY.HIGH.PUNCTUAL.REQUIRED
           source:  Urgency is high and the deadline is tomorrow.

@@ -464,15 +464,27 @@ _MOD_PHRASE = {
     "PROPOSE": "proposed", "ACKNOWLEDGE": "acknowledged",
     "GOOD": "good", "BAD": "bad", "REQUIRED": "required", "OPTIONAL": "optional",
     "SAFE": "safe", "HARM": "harmful", "COST": "costly", "BENEFIT": "beneficial",
+    "EQUAL": "equal to", "GREATER": "greater than", "LESS": "less than", "PART": "part of",
+    "HAS": "having", "MEMBER": "a member of", "NEAR": "near", "INSIDE": "inside", "OUTSIDE": "outside",
+    "ABOVE": "above", "BELOW": "below", "TOWARD": "toward",
+    "SELF": "I/we", "ADDRESSEE": "you", "THIS": "this", "THAT": "that", "WHICH": "which?",
+    "SAME": "the same one", "OTHER": "another", "EACH": "each", "ANY": "any", "GENERIC": "in general",
+    "AND": "and", "OR": "or", "XOR": "either-or", "IFF": "if and only if", "IMPLIES": "implying",
+    "ONLY": "only", "EXCEPT": "except",
+    "JOY": "glad", "FEAR": "afraid", "ANGER": "angry", "TRUST": "trusting", "SURPRISE": "surprised",
+    "DISGUST": "disgusted", "SADNESS": "sad", "CALM": "calm",
+    "NUM": "(number)", "STR": "(name)", "TIME": "(time)", "UNIT": "(unit)", "EREF": "(earlier utterance)",
 }
 
 _ROLE_PHRASE = {
     "ARG0": "whose agent is", "ARG1": "whose patient is", "ARG2": "whose instrument is",
     "SCOPE": "over", "MEASURE": "measured by", "CONDITION": "given",
+    "LOC": "at", "TIME": "when", "MANNER": "by means of", "PURPOSE": "for", "SOURCE": "from", "GOAL": "to",
 }
 
-_CLASS_ORDER = [inv.CLASS_EPISTEMIC, inv.CLASS_MODAL, inv.CLASS_SCALAR, inv.CLASS_TEMPORAL,
-                inv.CLASS_CAUSAL, inv.CLASS_VALENCE, inv.CLASS_ILLOCUTIONARY]
+_CLASS_ORDER = [inv.CLASS_DEICTIC, inv.CLASS_EPISTEMIC, inv.CLASS_MODAL, inv.CLASS_LOGICAL, inv.CLASS_SCALAR,
+                inv.CLASS_TEMPORAL, inv.CLASS_CAUSAL, inv.CLASS_RELATIONAL, inv.CLASS_VALENCE,
+                inv.CLASS_AFFECT, inv.CLASS_ILLOCUTIONARY]
 
 
 def read_node(n: Node, label=None) -> str:

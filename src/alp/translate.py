@@ -146,6 +146,24 @@ HEAD_LEXICON: dict[str, tuple[str, list[str]]] = {
     "word": ("SIGN", []),
     "idea": ("SIGN", ["BELIEVED"]),
     "truth": ("STATE", ["KNOWN", "AFFIRM"]),
+    "child": ("AGENT", ["BEGIN"]), "children": ("GROUP", ["AGENT", "BEGIN"]), "friend": ("AGENT", ["TRUST"]),
+    "family": ("GROUP", ["AGENT", "NEAR"]), "mother": ("AGENT", ["SOURCE_"]) if False else ("AGENT", []), "father": ("AGENT", []),
+    "house": ("PLACE", ["BOUNDED"]), "home": ("PLACE", ["SELF"]), "city": ("PLACE", ["GROUP"]), "country": ("PLACE", ["ALL"]),
+    "road": ("PLACE", ["DURATIVE"]), "river": ("ENTITY", ["DURATIVE", "PLACE"]), "sky": ("PLACE", ["ABOVE"]), "sun": ("ENTITY", ["ABOVE"]),
+    "water": ("ENTITY", []), "food": ("ENTITY", ["BENEFIT"]), "money": ("QUANTITY", ["COST"]), "dollar": ("QUANTITY", ["COST"]),
+    "dollars": ("QUANTITY", ["COST"]), "percent": ("QUANTITY", ["BOUNDED"]), "distance": ("QUANTITY", ["PLACE"]),
+    "temperature": ("QUANTITY", []), "speed": ("QUANTITY", ["DURATIVE"]), "weight": ("QUANTITY", []), "age": ("QUANTITY", ["PAST"]),
+    "story": ("SIGN", ["PAST"]), "song": ("SIGN", ["GOOD"]), "name": ("SIGN", ["MEMBER"]), "letter": ("SIGN", []),
+    "war": ("EVENT", ["HARM", "DURATIVE"]), "death": ("EVENT", ["END", "HARM"]), "birth": ("EVENT", ["BEGIN"]), "life": ("PROCESS", ["DURATIVE"]),
+    "dream": ("SIGN", ["HYPOTHETICAL"]), "mind": ("ENTITY", ["SIGN"]), "body": ("ENTITY", ["AGENT"]), "hand": ("ENTITY", ["PART"]),
+    "door": ("ENTITY", ["PLACE"]), "car": ("ENTITY", ["PROCESS"]), "ship": ("ENTITY", ["PROCESS"]), "machine": ("ENTITY", ["PROCESS"]),
+    "computer": ("ENTITY", ["SIGN", "PROCESS"]), "robot": ("AGENT", ["PROCESS"]), "animal": ("AGENT", []), "dog": ("AGENT", ["TRUST"]),
+    "cat": ("AGENT", []), "tree": ("ENTITY", ["DURATIVE"]), "stone": ("ENTITY", ["BOUNDED"]), "fire": ("PROCESS", ["HARM"]),
+    "light": ("ENTITY", ["OBSERVED"]), "dark": ("STATE", ["NEGATE", "OBSERVED"]), "rain": ("EVENT", ["DURATIVE"]),
+    "king": ("AGENT", ["EXTREME"]), "god": ("AGENT", ["UNBOUNDED"]), "enemy": ("AGENT", ["HARM"]), "stranger": ("AGENT", ["UNKNOWN"]),
+    "way": ("PROCESS", ["MANNER_"]) if False else ("PROCESS", []), "reason": ("RELATION", ["CAUSE"]), "choice": ("EVENT", ["OR", "COMMIT"]),
+    "law": ("SIGN", ["REQUIRED", "ALL"]), "promise": ("SIGN", ["COMMIT"]), "lie": ("SIGN", ["NEGATE", "KNOWN"]), "secret": ("SIGN", ["FORBIDDEN"]),
+    "hope": ("STATE", ["DESIRED", "FUTURE"]), "memory": ("SIGN", ["PAST"]), "pain": ("STATE", ["HARM"]), "joy": ("STATE", ["JOY"]),
 }
 
 # Verbs that become the clause predicate: word -> (head, modifiers).
@@ -227,6 +245,28 @@ VERB_LEXICON: dict[str, tuple[str, list[str]]] = {
     "affect": ("RELATION", ["CAUSE"]),
     "impact": ("RELATION", ["CAUSE", "HARM"]),
     "mean": ("RELATION", ["CORRELATE"]),
+    "go": ("PROCESS", ["TOWARD"]), "come": ("PROCESS", ["TOWARD", "SELF"]), "give": ("PROCESS", ["BENEFIT"]),
+    "take": ("PROCESS", ["HAS"]), "find": ("EVENT", ["OBSERVED", "KNOWN"]), "bring": ("PROCESS", ["TOWARD"]),
+    "build": ("PROCESS", ["BEGIN", "GOOD"]), "meet": ("EVENT", ["NEAR", "PUNCTUAL"]), "get": ("EVENT", ["HAS"]),
+    "keep": ("STATE", ["DURATIVE", "HAS"]), "lose": ("EVENT", ["NEGATE", "HAS", "BAD"]), "pay": ("PROCESS", ["COST"]),
+    "sell": ("PROCESS", ["COST"]), "hold": ("STATE", ["HAS"]), "feel": ("STATE", []), "win": ("EVENT", ["GOOD", "END"]),
+    "write": ("PROCESS", ["SIGN"]), "read": ("PROCESS", ["SIGN", "OBSERVED"]), "put": ("PROCESS", ["TOWARD"]),
+    "sit": ("STATE", ["CALM"]), "stand": ("STATE", ["DURATIVE"]), "understand": ("STATE", ["KNOWN"]),
+    "forget": ("EVENT", ["NEGATE", "KNOWN"]), "choose": ("EVENT", ["COMMIT", "OR"]), "speak": ("SIGN", ["ASSERT"]),
+    "drive": ("PROCESS", ["TOWARD"]), "fly": ("PROCESS", ["ABOVE", "TOWARD"]), "eat": ("PROCESS", ["BENEFIT"]),
+    "drink": ("PROCESS", ["BENEFIT"]), "sleep": ("STATE", ["CALM", "DURATIVE"]), "buy": ("EVENT", ["COST", "HAS"]),
+    "catch": ("EVENT", ["HAS", "PUNCTUAL"]), "teach": ("PROCESS", ["SIGN", "GOOD"]), "fight": ("PROCESS", ["HARM", "CONTESTED"]),
+    "lead": ("PROCESS", ["CAUSE", "TOWARD"]), "feed": ("PROCESS", ["BENEFIT"]), "spend": ("PROCESS", ["COST"]),
+    "die": ("EVENT", ["END", "HARM"]), "live": ("PROCESS", ["DURATIVE"]), "love": ("STATE", ["JOY", "TRUST"]),
+    "hate": ("STATE", ["ANGER"]), "open": ("EVENT", ["BEGIN", "ENABLE"]), "close": ("EVENT", ["END", "PREVENT"]),
+    "kill": ("EVENT", ["END", "HARM", "CAUSE"]), "save": ("EVENT", ["SAFE", "GOOD"]), "try": ("PROCESS", ["DESIRED"]),
+    "call": ("SIGN", ["REQUEST"]), "show": ("SIGN", ["OBSERVED"]), "learn": ("PROCESS", ["KNOWN", "INCREASE"]),
+    "remember": ("STATE", ["PAST", "KNOWN"]), "decide": ("EVENT", ["COMMIT"]), "agree": ("SIGN", ["ACKNOWLEDGE", "AFFIRM"]),
+    "arrive": ("EVENT", ["END", "TOWARD"]), "return": ("PROCESS", ["PAST", "TOWARD"]), "do": ("PROCESS", []),
+    "walk": ("PROCESS", ["TOWARD", "DURATIVE"]), "talk": ("SIGN", ["ASSERT", "DURATIVE"]), "look": ("PROCESS", ["OBSERVED"]),
+    "watch": ("PROCESS", ["OBSERVED", "DURATIVE"]), "hear": ("EVENT", ["OBSERVED"]), "listen": ("PROCESS", ["OBSERVED"]),
+    "think": ("STATE", ["BELIEVED"]), "hope": ("STATE", ["DESIRED", "FUTURE"]), "fear": ("STATE", ["FEAR"]),
+    "trust": ("STATE", ["TRUST"]), "doubt": ("STATE", ["CONTESTED", "BELIEVED"]), "wonder": ("STATE", ["QUERY", "UNKNOWN"]),
 }
 
 # Causal connectives / verbs: word -> causal primitive.  These build
@@ -299,13 +339,50 @@ NEGATORS = {"not", "no", "never", "down", "failed", "unavailable", "offline", "w
 COPULA = {"is", "are", "am", "was", "were", "be", "been", "being", "seems", "looks", "remains", "stays", "gets", "got", "become", "became"}
 AUXILIARIES = {"do", "does", "did", "has", "have", "had", "will", "would", "can", "could", "may", "might", "must", "shall", "should"}
 DETERMINERS = {"a", "an", "the", "this", "that", "these", "those", "its", "our", "their", "my", "your", "his", "her", "some", "any", "each"}
-PRONOUNS = {"we": "GROUP", "i": "AGENT", "you": "AGENT", "they": "GROUP", "he": "AGENT", "she": "AGENT",
-            "it": "ENTITY", "us": "GROUP", "them": "GROUP", "me": "AGENT", "someone": "AGENT", "everyone": "GROUP"}
+# pronoun -> (head, deictic modifier)
+PRONOUNS = {"we": ("GROUP", "SELF"), "i": ("AGENT", "SELF"), "me": ("AGENT", "SELF"), "us": ("GROUP", "SELF"),
+            "you": ("AGENT", "ADDRESSEE"), "they": ("GROUP", "THAT"), "them": ("GROUP", "THAT"),
+            "he": ("AGENT", "THAT"), "she": ("AGENT", "THAT"), "it": ("ENTITY", "THAT"),
+            "this": ("ENTITY", "THIS"), "that": ("ENTITY", "THAT"), "these": ("GROUP", "THIS"), "those": ("GROUP", "THAT"),
+            "someone": ("AGENT", "ANY"), "anyone": ("AGENT", "ANY"), "everyone": ("GROUP", "EACH"), "everything": ("GROUP", "EACH"),
+            "something": ("ENTITY", "ANY"), "anything": ("ENTITY", "ANY"), "nothing": ("ENTITY", "NONE"),
+            "myself": ("AGENT", "SELF"), "ourselves": ("GROUP", "SELF"), "yourself": ("AGENT", "ADDRESSEE")}
 PREPOSITION_ROLE: dict[str, str] = {
-    "in": "SCOPE", "at": "SCOPE", "on": "SCOPE", "within": "SCOPE", "across": "SCOPE", "over": "SCOPE",
-    "of": "SCOPE", "about": "SCOPE", "for": "ARG2", "to": "ARG2", "with": "ARG2", "by": "ARG0", "from": "ARG0",
-    "per": "MEASURE", "under": "CONDITION", "against": "ARG1", "into": "ARG1",
+    "in": "LOC", "at": "LOC", "on": "LOC", "within": "LOC", "across": "LOC", "inside": "LOC", "near": "LOC",
+    "over": "SCOPE", "of": "SCOPE", "about": "SCOPE", "regarding": "SCOPE",
+    "for": "PURPOSE", "to": "GOAL", "into": "GOAL", "toward": "GOAL", "towards": "GOAL", "onto": "GOAL",
+    "with": "MANNER", "via": "MANNER", "through": "MANNER", "using": "MANNER",
+    "by": "ARG0", "from": "SOURCE", "since": "SOURCE", "until": "GOAL",
+    "per": "MEASURE", "under": "CONDITION", "against": "ARG1", "during": "TIME", "before": "TIME", "after": "TIME",
 }
+# words that turn a LOC role into a TIME role when they head the object
+TIME_WORDS = {"time", "hour", "day", "week", "month", "year", "moment", "window", "morning", "night", "noon", "midnight",
+              "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "today", "tomorrow", "yesterday"}
+# comparatives: phrase -> relational primitive
+COMPARATIVES = {"more": "GREATER", "greater": "GREATER", "higher": "GREATER", "above": "GREATER", "over": "GREATER",
+                "exceeds": "GREATER", "bigger": "GREATER", "larger": "GREATER", "longer": "GREATER",
+                "less": "LESS", "fewer": "LESS", "lower": "LESS", "below": "LESS", "under": "LESS", "smaller": "LESS", "shorter": "LESS",
+                "equal": "EQUAL", "equals": "EQUAL", "same": "EQUAL", "like": "EQUAL"}
+RELATIONAL_VERBS = {"has": "HAS", "have": "HAS", "had": "HAS", "contains": "HAS", "contain": "HAS", "owns": "HAS", "own": "HAS",
+                    "includes": "HAS", "include": "HAS", "belongs": "MEMBER", "belong": "MEMBER",
+                    "part": "PART", "member": "MEMBER", "kind": "MEMBER", "type": "MEMBER", "instance": "MEMBER",
+                    "near": "NEAR", "inside": "INSIDE", "outside": "OUTSIDE", "above": "ABOVE", "below": "BELOW", "toward": "TOWARD"}
+AFFECT_WORDS = {"happy": "JOY", "glad": "JOY", "pleased": "JOY", "joy": "JOY", "love": "JOY", "like": "JOY",
+                "afraid": "FEAR", "scared": "FEAR", "worried": "FEAR", "fear": "FEAR", "anxious": "FEAR", "nervous": "FEAR",
+                "angry": "ANGER", "mad": "ANGER", "furious": "ANGER", "annoyed": "ANGER", "hate": "ANGER",
+                "trust": "TRUST", "confident": "TRUST", "rely": "TRUST",
+                "surprised": "SURPRISE", "shocked": "SURPRISE", "amazed": "SURPRISE",
+                "disgusted": "DISGUST", "gross": "DISGUST",
+                "sad": "SADNESS", "sorry": "SADNESS", "unhappy": "SADNESS", "grief": "SADNESS", "miss": "SADNESS",
+                "calm": "CALM", "relaxed": "CALM", "peaceful": "CALM", "content": "CALM"}
+QUANTIFIERS = {"each": "EACH", "every": "EACH", "any": "ANY", "other": "OTHER", "another": "OTHER", "same": "SAME",
+               "only": "ONLY", "except": "EXCEPT", "generally": "GENERIC", "usually": "GENERIC"}
+_NUMBER = re.compile(r"^(-?\d+(?:\.\d+)?)([a-z%°]+)?$")
+_WORD_NUM = {"zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9,
+             "ten": 10, "eleven": 11, "twelve": 12, "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "hundred": 100,
+             "thousand": 1000, "million": 1000000, "half": 0.5, "dozen": 12}
+_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}(?:t\d{2}:\d{2}(?::\d{2})?z?)?$")
+_CLOCK = re.compile(r"^\d{1,2}:\d{2}$")
 ILLOCUTION: dict[str, str] = {
     "please": "REQUEST", "?": "QUERY", "what": "QUERY", "when": "QUERY", "why": "QUERY",
     "which": "QUERY", "how": "QUERY", "who": "QUERY", "where": "QUERY",
@@ -315,12 +392,12 @@ ILLOCUTION: dict[str, str] = {
 CONNECTIVES = {
     "because": "CAUSE", "since": "CAUSE", "as": "CAUSE", "so": "CAUSE_REV", "therefore": "CAUSE_REV",
     "hence": "CAUSE_REV", "thus": "CAUSE_REV", "if": "CONDITION", "unless": "CONDITION_NEG",
-    "when": "CONDITION", "whenever": "CONDITION", "and": "AND", "but": "AND", "then": "AND", "or": "AND",
+    "when": "CONDITION", "whenever": "CONDITION", "and": "AND", "but": "AND", "then": "AND", "or": "OR",
 }
-FILLERS = {"very", "just", "really", "quite", "also", "too", "there", "here", "yet", "even", "only", "already", "that", "which", "who", "whom", "of", "back", "out", "off", "away"}
+FILLERS = {"very", "just", "really", "quite", "also", "too", "there", "here", "yet", "even", "already", "that", "whom", "of", "back", "out", "off", "away"}
 
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?;])\s+(?=[A-Z0-9\"'(])")
-_WORD = re.compile(r"[A-Za-z][A-Za-z0-9_'\-]*|[?]|,")
+_WORD = re.compile(r"\d{4}-\d{2}-\d{2}(?:[Tt]\d{2}:\d{2}(?::\d{2})?[Zz]?)?|\d{1,2}:\d{2}|-?\d+(?:\.\d+)?[A-Za-z%°]*|[A-Za-z][A-Za-z0-9_'\-]*|[?]|,")
 
 
 # ---------------------------------------------------------------------------
@@ -346,10 +423,15 @@ class Translation:
     def fully_composed(self) -> bool:
         return not self.composition.residue_bearing() and not self.names
 
+    literals: dict[str, Any] = field(default_factory=dict)      # role path -> number / {"n","u"} / time
+
     @property
     def value(self) -> Any:
-        """The value to bind at ASSERT time: ``true`` or ``{"names": {...}}``."""
-        return {"names": dict(self.names)} if self.names else True
+        """The value to bind at ASSERT time: ``true`` or ``{"bind": {path: literal}}``."""
+        bind: dict[str, Any] = {}
+        bind.update(self.literals)
+        bind.update(self.names)
+        return {"bind": bind} if bind else True
 
 
 @dataclass
@@ -397,9 +479,26 @@ def split_sentences(text: str) -> list[str]:
 # Morphology
 # ---------------------------------------------------------------------------
 
+IRREGULAR = {
+    "sent": "send", "went": "go", "gone": "go", "gave": "give", "given": "give", "took": "take", "taken": "take",
+    "made": "make", "said": "say", "told": "tell", "saw": "see", "seen": "see", "knew": "know", "known": "know",
+    "thought": "think", "found": "find", "left": "leave", "brought": "bring", "built": "build", "met": "meet",
+    "ran": "run", "came": "come", "got": "get", "kept": "keep", "lost": "lose", "paid": "pay", "sold": "sell",
+    "held": "hold", "felt": "feel", "began": "begin", "begun": "begin", "broke": "break", "broken": "break",
+    "fell": "fall", "fallen": "fall", "rose": "rise", "risen": "rise", "grew": "grow", "grown": "grow", "won": "win",
+    "wrote": "write", "written": "write", "sat": "sit", "stood": "stand", "understood": "understand", "forgot": "forget",
+    "chose": "choose", "chosen": "choose", "spoke": "speak", "spoken": "speak", "drove": "drive", "flew": "fly",
+    "ate": "eat", "drank": "drink", "slept": "sleep", "bought": "buy", "caught": "catch", "taught": "teach",
+    "fought": "fight", "led": "lead", "fed": "feed", "meant": "mean", "spent": "spend", "lent": "lend",
+    "died": "die", "ran": "run", "shown": "show", "did": "do", "done": "do", "was": "be", "were": "be",
+}
+
+
 def _stem_candidates(w: str) -> list[tuple[str, list[str]]]:
     """(stem, implied modifiers) candidates for an inflected word, most specific first."""
     out: list[tuple[str, list[str]]] = [(w, [])]
+    if w in IRREGULAR:
+        out.append((IRREGULAR[w], ["PAST"]))
     if w.endswith("ies") and len(w) > 4:
         out.append((w[:-3] + "y", []))
     if w.endswith("es") and len(w) > 4:
@@ -436,9 +535,13 @@ class _NP:
     names: list[str] = field(default_factory=list)
     roles: dict[int, "_NP"] = field(default_factory=dict)
     words: list[str] = field(default_factory=list)
+    number: float | int | None = None
+    unit: str | None = None
+    time: str | None = None
 
     def empty(self) -> bool:
-        return self.head is None and not self.mods and not self.names and not self.roles
+        return (self.head is None and not self.mods and not self.names and not self.roles
+                and self.number is None and self.time is None)
 
 
 class Translator:
@@ -453,6 +556,7 @@ class Translator:
         self.heads = dict(head_lexicon or HEAD_LEXICON)
         self.verbs = dict(verb_lexicon or VERB_LEXICON)
         self.cues = dict(cue_lexicon or CUE_LEXICON)
+        self._literals: dict[str, Any] = {}
 
     # -- lexical lookup ----------------------------------------------------------
     def _lookup(self, w: str) -> tuple[str, Any, list[str]] | None:
@@ -531,6 +635,20 @@ class Translator:
             t = toks[i]
             i += 1
             if t in AUXILIARIES:
+                nxt = toks[i] if i < len(toks) else ""
+                if t in ("has", "have", "had") and nxt and nxt not in ("been", "not", "never", "to") and not nxt.endswith(("ed", "en")) \
+                        and nxt not in AUXILIARIES and nxt not in COPULA and nxt not in IRREGULAR:
+                    consumed.append(t)
+                    causal = "HAS"
+                    if t == "had":
+                        clause_mods.add(pid("PAST"))
+                    if pending_mods:
+                        subject.mods |= pending_mods
+                        pending_mods = set()
+                    after_verb = True
+                    cur = obj
+                    role_target = None
+                    continue
                 consumed.append(t)
                 if t in self.cues:
                     clause_mods.add(pid(self.cues[t]))
@@ -548,6 +666,9 @@ class Translator:
                 consumed.append(t)
                 clause_mods.add(pid(ILLOCUTION[t]))
                 if t in ("what", "when", "why", "which", "how", "who", "where"):
+                    pending_mods.add(pid("WHICH"))
+                    if t == "when":
+                        pending_mods.add(pid("MOMENT")) if False else None
                     continue
                 if t not in self.verbs:
                     continue
@@ -562,24 +683,118 @@ class Translator:
                 cur = subject
                 role_target = None
                 continue
+            # -- literals: numbers, dates, clock times --------------------------------
+            mnum = _NUMBER.match(t)
+            if _DATE.match(t) or _CLOCK.match(t):
+                consumed.append(t)
+                val = t.upper() if "t" in t else t
+                if cur.time and _CLOCK.match(cur.time) and _DATE.match(t):
+                    val = t.upper() + "T" + cur.time
+                elif cur.time and _DATE.match(cur.time) and _CLOCK.match(t):
+                    val = cur.time.split("T")[0] + "T" + t
+                cur.time = val
+                if cur.head is None:
+                    cur.head = pid("MOMENT")
+                continue
+            if mnum or t in _WORD_NUM:
+                consumed.append(t)
+                if mnum:
+                    num = float(mnum.group(1)) if "." in mnum.group(1) else int(mnum.group(1))
+                    unit = mnum.group(2)
+                else:
+                    num, unit = _WORD_NUM[t], None
+                if cur.number is not None and t in _WORD_NUM and num >= 100:
+                    cur.number = cur.number * num
+                elif cur.number is not None and t in _WORD_NUM:
+                    cur.number = cur.number + num
+                else:
+                    cur.number = num
+                if unit:
+                    cur.unit = unit
+                continue
             if t in PRONOUNS:
                 consumed.append(t)
+                head_name, deix = PRONOUNS[t]
                 target = cur
                 if target.head is None:
-                    target.head = pid(PRONOUNS[t])
+                    target.head = pid(head_name)
+                target.mods.add(pid(deix))
                 if negate_next:
                     target.mods.add(pid("NEGATE"))
                     negate_next = False
                 continue
+            if t in QUANTIFIERS:
+                consumed.append(t)
+                pending_mods.add(pid(QUANTIFIERS[t]))
+                continue
+            if t in AFFECT_WORDS:
+                consumed.append(t)
+                m = {pid(AFFECT_WORDS[t])}
+                if negate_next:
+                    m.add(pid("NEGATE"))
+                    negate_next = False
+                target = subject if (after_copula or after_verb) and role_target is None else cur
+                if target.head is None and target is cur and not target.names:
+                    pending_mods |= m
+                else:
+                    target.mods |= m
+                rest = toks[i:]
+                if rest and rest[0] == "that":
+                    rest = rest[1:]
+                    consumed.append("that")
+                if after_copula and len(rest) >= 3 and any(self._lookup(x) and self._lookup(x)[0] in ("verb", "causal") or x in COPULA or x in AUXILIARIES for x in rest):
+                    # "I am afraid (that) <clause>": the clause is the content of the feeling
+                    sub, c2, u2 = self._parse_clause(rest)
+                    consumed += c2
+                    unconsumed += u2
+                    subject.roles[inv.ROLES["ARG1"]] = sub
+                    break
+                continue
+            if t in COMPARATIVES and (i < len(toks) and toks[i] in ("than", "to", "as")):
+                consumed += [t, toks[i]]
+                i += 1
+                causal = COMPARATIVES[t]
+                if pending_mods:
+                    subject.mods |= pending_mods
+                    pending_mods = set()
+                after_verb = True
+                cur = obj
+                role_target = None
+                continue
+            if t in RELATIONAL_VERBS and t not in self.heads and (t not in ("part", "member", "kind", "type", "instance") or (i < len(toks) and toks[i] == "of")):
+                consumed.append(t)
+                if i < len(toks) and toks[i] == "of":
+                    consumed.append(toks[i])
+                    i += 1
+                causal = RELATIONAL_VERBS[t]
+                if negate_next:
+                    clause_mods.add(pid("NEGATE"))
+                    negate_next = False
+                after_verb = True
+                cur = obj
+                role_target = None
+                continue
             if t in PREPOSITION_ROLE:
                 consumed.append(t)
                 role = inv.ROLES[PREPOSITION_ROLE[t]]
+                nxt = toks[i] if i < len(toks) else ""
+                nxt2 = toks[i + 1] if i + 1 < len(toks) else ""
+                if role in (inv.ROLES["LOC"], inv.ROLES["PURPOSE"], inv.ROLES["SOURCE"]) and (
+                        nxt in TIME_WORDS or nxt2 in TIME_WORDS or _DATE.match(nxt) or _CLOCK.match(nxt)
+                        or (_NUMBER.match(nxt) and (nxt2 in TIME_WORDS or nxt2.rstrip("s") in TIME_WORDS))):
+                    role = inv.ROLES["TIME"]
+                if t in ("before", "after", "during") and pred is None and not after_copula:
+                    clause_mods.add(pid(t.upper()))
                 owner = pred if (pred is not None and after_verb) else (obj if (after_verb and not obj.empty()) else subject)
-                if owner is subject and after_copula and t in ("in", "at", "on", "within", "across", "of"):
-                    owner = subject
                 if pending_mods:
                     attach(pending_mods, cur)
                     pending_mods = set()
+                if role in owner.roles and not owner.roles[role].empty():
+                    if role == inv.ROLES["TIME"]:
+                        cur = owner.roles[role]          # "at 12:00 on 2026-09-01": one TIME
+                        role_target = (owner, role)
+                        continue
+                    role = next((r for r in (inv.ROLES["ARG2"], inv.ROLES["SCOPE"], inv.ROLES["MANNER"]) if r not in owner.roles), role)
                 cur = new_np_for_pp(owner, role)
                 role_target = (owner, role)
                 continue
@@ -722,15 +937,29 @@ class Translator:
             rpath = f"{path}/{inv.ROLE_NAMES[code]}" if path else inv.ROLE_NAMES[code]
             roles[code] = self._to_node(sub, rpath, names, residue_words)
         residue = None
+        key = path or "."
         if np.names:
             if self.names_mode == "bind":
-                names[path or "."] = " ".join(np.names)
+                names[key] = " ".join(np.names)
             elif self.names_mode == "residue":
                 residue = " ".join(np.names)
-            residue_words.extend(np.names) if self.names_mode == "drop" else None
-        if head.cls == inv.CLASS_ONTOLOGICAL and inv.name_of(head) == "PLACE" and not np.names and not mods and not roles:
-            pass
-        return Composition(head, frozenset(mods), tuple(roles.items()), residue, None, None)
+            elif self.names_mode == "drop":
+                residue_words.extend(np.names)
+        if np.number is not None or np.unit is not None or np.time is not None:
+            lit: dict[str, Any] = {}
+            if np.number is not None:
+                lit["n"] = np.number
+            if np.unit is not None:
+                lit["u"] = np.unit
+            if np.time is not None:
+                lit["t"] = np.time
+            self._literals[key] = lit["n"] if list(lit) == ["n"] else lit
+            if np.number is not None and inv.name_of(head) != "QUANTITY" and inv.ROLES["MEASURE"] not in roles:
+                # a counted thing: MEASURE role filled by a bare QUANTITY, number bound there
+                roles[inv.ROLES["MEASURE"]] = Composition(pid("QUANTITY"))
+                self._literals.pop(key)
+                self._literals[(path + "/" if path else "") + "MEASURE"] = lit["n"] if list(lit) == ["n"] else lit
+        return Composition(head, frozenset(mods), tuple(sorted(roles.items())), residue, None, None)
 
     # -- public --------------------------------------------------------------------------------------
     def translate(self, text: str) -> list[Translation]:
@@ -741,12 +970,14 @@ class Translator:
         results: list[Translation] = []
         prev: Translation | None = None
         pending_cond: Composition | None = None
-        pending_cond_names: dict[str, str] = {}
+        pending_cond_names: tuple = ({}, {})
         for conn, ctoks in clauses:
             tree, consumed, unconsumed = self._parse_clause(ctoks)
             names: dict[str, str] = {}
             dropped: list[str] = []
+            self._literals = {}
             comp = self._to_node(tree, "", names, dropped)
+            literals = dict(self._literals)
             if tree.empty() and not names:
                 comp = Composition.build("SIGN", "UNKNOWN")
                 if self.names_mode == "residue":
@@ -756,12 +987,23 @@ class Translator:
                 unconsumed = list(ctoks)
             unconsumed += dropped
 
-            if conn in ("CAUSE", "CAUSE_REV") and prev is not None:
-                cause, effect = (comp, prev.composition) if conn == "CAUSE" else (prev.composition, comp)
-                cn = {("ARG0/" + k if k != "." else "ARG0"): v for k, v in (names if conn == "CAUSE" else prev.names).items()}
-                en = {("ARG1/" + k if k != "." else "ARG1"): v for k, v in (prev.names if conn == "CAUSE" else names).items()}
-                rel = Composition.build("RELATION", "CAUSE", roles={"ARG0": cause, "ARG1": effect}, gloss=gloss)
-                prev = Translation(text, rel, prev.consumed + consumed, prev.unconsumed + unconsumed, {**cn, **en})
+            def prefixed(d: dict, role: str) -> dict:
+                return {(role + "/" + k if k != "." else role): v for k, v in d.items()}
+
+            if conn in ("CAUSE", "CAUSE_REV", "OR") and prev is not None:
+                if conn == "OR":
+                    a, b = prev.composition, comp
+                    rel = Composition.build("GROUP", "OR", roles={"ARG0": a, "ARG1": b}, gloss=gloss)
+                    an, bn = prefixed(prev.names, "ARG0"), prefixed(names, "ARG1")
+                    al, bl = prefixed(prev.literals, "ARG0"), prefixed(literals, "ARG1")
+                else:
+                    cause, effect = (comp, prev.composition) if conn == "CAUSE" else (prev.composition, comp)
+                    cn_src, en_src = (names, prev.names) if conn == "CAUSE" else (prev.names, names)
+                    cl_src, el_src = (literals, prev.literals) if conn == "CAUSE" else (prev.literals, literals)
+                    rel = Composition.build("RELATION", "CAUSE", roles={"ARG0": cause, "ARG1": effect}, gloss=gloss)
+                    an, bn = prefixed(cn_src, "ARG0"), prefixed(en_src, "ARG1")
+                    al, bl = prefixed(cl_src, "ARG0"), prefixed(el_src, "ARG1")
+                prev = Translation(text, rel, prev.consumed + consumed, prev.unconsumed + unconsumed, {**an, **bn}, {**al, **bl})
                 results[-1] = prev
                 continue
             if conn in ("CONDITION", "CONDITION_NEG"):
@@ -769,18 +1011,19 @@ class Translator:
                 if prev is not None:
                     main = prev.composition
                     new = Composition(main.head, main.modifiers, dict(main.roles) | {inv.ROLES["CONDITION"]: cond}, main.residue, None, gloss)
-                    cn = {("CONDITION/" + k if k != "." else "CONDITION"): v for k, v in names.items()}
-                    prev = Translation(text, new, prev.consumed + consumed, prev.unconsumed + unconsumed, {**prev.names, **cn})
+                    prev = Translation(text, new, prev.consumed + consumed, prev.unconsumed + unconsumed,
+                                       {**prev.names, **prefixed(names, "CONDITION")}, {**prev.literals, **prefixed(literals, "CONDITION")})
                     results[-1] = prev
                 else:
-                    pending_cond, pending_cond_names = cond, names
+                    pending_cond, pending_cond_names = cond, (names, literals)
                 continue
             if pending_cond is not None:
                 comp = Composition(comp.head, comp.modifiers, dict(comp.roles) | {inv.ROLES["CONDITION"]: pending_cond}, comp.residue)
-                names.update({("CONDITION/" + k if k != "." else "CONDITION"): v for k, v in pending_cond_names.items()})
+                names.update(prefixed(pending_cond_names[0], "CONDITION"))
+                literals.update(prefixed(pending_cond_names[1], "CONDITION"))
                 pending_cond = None
             comp = comp.with_gloss(gloss)
-            prev = Translation(text, comp, consumed, unconsumed, names)
+            prev = Translation(text, comp, consumed, unconsumed, names, literals)
             results.append(prev)
         return results
 

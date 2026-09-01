@@ -92,13 +92,69 @@ class 0x08  structural
   0x0802  U+E802  SCOPE_CLOSE  Ends one
   0x0803  U+E803  SUPERSEDE    Marks the supersession link
   0x0804  U+E804  RESIDUE      Marks untranslated meaning
+  0x0805  U+E805  NUM          A bound number follows
+  0x0806  U+E806  STR          A bound name or text follows
+  0x0807  U+E807  TIME         A bound instant or date follows
+  0x0808  U+E808  UNIT         A bound unit of measure follows
+  0x0809  U+E809  EREF         Points at an existing EID (an earlier utterance)
 
-76 primitives, inventory version 1
+class 0x09  relational
+  0x0900  U+E900  EQUAL        Same as, equal to
+  0x0901  U+E901  GREATER      More than, above on a scale
+  0x0902  U+E902  LESS         Less than, below on a scale
+  0x0903  U+E903  PART         Is a part of
+  0x0904  U+E904  HAS          Possesses, contains, owns
+  0x0905  U+E905  MEMBER       Is a member or instance of
+  0x0906  U+E906  NEAR         Close to
+  0x0907  U+E907  INSIDE       Within
+  0x0908  U+E908  OUTSIDE      Beyond, external to
+  0x0909  U+E909  ABOVE        Spatially over
+  0x090A  U+E90A  BELOW        Spatially under
+  0x090B  U+E90B  TOWARD       Directed at
+
+class 0x0A  deictic
+  0x0A00  U+EA00  SELF         The speaker
+  0x0A01  U+EA01  ADDRESSEE    The one spoken to
+  0x0A02  U+EA02  THIS         The proximal referent
+  0x0A03  U+EA03  THAT         The distal referent
+  0x0A04  U+EA04  WHICH        The queried variable
+  0x0A05  U+EA05  SAME         The one already mentioned
+  0x0A06  U+EA06  OTHER        A different one
+  0x0A07  U+EA07  EACH         Distributively, every one
+  0x0A08  U+EA08  ANY          An arbitrary one
+  0x0A09  U+EA09  GENERIC      The kind, not an instance
+
+class 0x0B  logical
+  0x0B00  U+EB00  AND          Conjunction
+  0x0B01  U+EB01  OR           Inclusive disjunction
+  0x0B02  U+EB02  XOR          Exactly one of
+  0x0B03  U+EB03  IFF          If and only if
+  0x0B04  U+EB04  IMPLIES      Entails
+  0x0B05  U+EB05  ONLY         Exclusively
+  0x0B06  U+EB06  EXCEPT       With the exclusion of
+
+class 0x0C  affect
+  0x0C00  U+EC00  JOY          Gladness
+  0x0C01  U+EC01  FEAR         Fear, anxiety
+  0x0C02  U+EC02  ANGER        Anger
+  0x0C03  U+EC03  TRUST        Trust, confidence in
+  0x0C04  U+EC04  SURPRISE     Surprise
+  0x0C05  U+EC05  DISGUST      Aversion
+  0x0C06  U+EC06  SADNESS      Sorrow, loss
+  0x0C07  U+EC07  CALM         Ease, absence of arousal
+
+118 primitives (76 in v1 + 42 in v2), inventory version 2
 
 roles
   0x01  ARG0       Agent, cause, or first argument
   0x02  ARG1       Patient, effect, or second argument
   0x03  ARG2       Instrument, recipient, third argument
   0x04  SCOPE      The domain over which the head applies
-  0x05  MEASURE    Unit or scale reference
+  0x05  MEASURE    Unit, scale, or amount
   0x06  CONDITION  Precondition on the head
+  0x07  LOC        Where
+  0x08  TIME       When
+  0x09  MANNER     How, by what means
+  0x0A  PURPOSE    What for
+  0x0B  SOURCE     From where or whom
+  0x0C  GOAL       To where or whom

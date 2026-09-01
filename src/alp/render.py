@@ -344,6 +344,14 @@ class Blocks:
 
 
 @dataclass
+class Chars:
+    """Running text in the character script: a list of (composition, bound value) or None (line break)."""
+    words: list
+    cell: int = 56
+    theme: str = "dark"
+
+
+@dataclass
 class Img:
     image: Image.Image
 
@@ -358,7 +366,7 @@ class Spacer:
     height: int = 12
 
 
-Item = Union[Heading, Para, Blocks, Img, Rule, Spacer]
+Item = Union[Heading, Para, Blocks, Chars, Img, Rule, Spacer]
 Doc = list
 
 
@@ -464,8 +472,8 @@ def render_png(doc: Doc, page: PageSpec | None = None) -> list[Image.Image]:
                 ensure(row.height + 10)
                 cur.paste(row, (ps.margin, y))
                 y += row.height + 10
-        elif isinstance(item, Img):
-            im = item.image
+        elif isinstance(item, (Img, Chars)):
+            im = item.image if isinstance(item, Img) else _chars_image(item, inner_w)
             if im.width > inner_w:
                 im = im.resize((inner_w, int(im.height * inner_w / im.width)))
             ensure(im.height + 10)
@@ -588,8 +596,8 @@ def render_pdf(doc: Doc, title: str = "ALP", theme: str = "light") -> bytes:
                 ensure(h + 8)
                 c.drawImage(ImageReader(row), margin, y - h, width=w, height=h)
                 y -= h + 8
-        elif isinstance(item, Img):
-            im = item.image
+        elif isinstance(item, (Img, Chars)):
+            im = item.image if isinstance(item, Img) else _chars_image(item, int(inner_w * 2))
             scale = min(0.5, inner_w / im.width)
             w, h = im.width * scale, im.height * scale
             if h > H - 2 * margin:
@@ -615,26 +623,62 @@ def save_pdf(doc: Doc, path: str, title: str = "ALP", theme: str = "light") -> s
     return path
 
 
+def _chars_image(item: "Chars", width: int) -> Image.Image:
+    from . import script
+    return script.render_text(item.words, script.CharStyle(cell=item.cell, theme=item.theme), width=width, margin=0)
+
+
 # ---------------------------------------------------------------------------
 # Document builders
 # ---------------------------------------------------------------------------
 
 def doc_for_compositions(comps: Sequence[Composition], sources: Sequence[str] | None = None,
                          title: str | None = None, style: BlockStyle | None = None,
-                         english: bool = False, theme: str = "dark", values: Sequence[Any] | None = None) -> Doc:
-    """Blocks with their ALP/T transliteration.  English (source + reading) only on request."""
-    st = style or BlockStyle(theme=theme)
+                         english: bool = False, theme: str = "dark", values: Sequence[Any] | None = None,
+                         mode: str = "text", cell: int = 56, transliteration: bool = True) -> Doc:
+    """Compositions in the character script.
+
+    mode="text": all utterances flow as running text (compact; one line per source sentence
+                 when sources are given), then the ALP/T listing.
+    mode="each": one utterance per row with its ALP/T line (and English on request).
+    mode="block": the expanded §6.2 block form (one glyph per primitive, stacked)."""
+    from .alpt import fmt_term
     doc: Doc = []
     if title:
         doc.append(Heading(title, 1))
+    vals = list(values) if values else [True] * len(comps)
+    if mode == "text":
+        words: list = []
+        last_src = object()
+        for i, c in enumerate(comps):
+            src = sources[i] if sources and i < len(sources) else None
+            if sources and src != last_src and words:
+                words.append(None)
+            last_src = src
+            words.append((c, vals[i]))
+        doc.append(Chars(words, cell=cell, theme=theme))
+        if transliteration or english:
+            doc.append(Rule())
+            for i, c in enumerate(comps):
+                if english and sources and i < len(sources) and sources[i] and (i == 0 or sources[i] != sources[i - 1]):
+                    doc.append(Para(sources[i]))
+                line = f"!{c.sid_hex(8)}  {c.transliterate(8)}"
+                if vals[i] not in (None, True):
+                    line += f"   ← {fmt_term(vals[i])}"
+                doc.append(Para(line, mono=True, dim=not english))
+                if english:
+                    doc.append(Para("reads: " + c.reading(), dim=True))
+        return doc
     for i, c in enumerate(comps):
         if english and sources and i < len(sources) and sources[i]:
             doc.append(Para(sources[i]))
-        doc.append(Blocks([c], st))
+        if mode == "block":
+            doc.append(Blocks([c], style or BlockStyle(theme=theme)))
+        else:
+            doc.append(Chars([(c, vals[i])], cell=cell, theme=theme))
         line = f"!{c.sid_hex(16)}…  {c.transliterate(8)}"
-        if values and i < len(values) and values[i] not in (None, True):
-            from .alpt import fmt_term
-            line += f"   ← {fmt_term(values[i])}"
+        if vals[i] not in (None, True):
+            line += f"   ← {fmt_term(vals[i])}"
         doc.append(Para(line, mono=True))
         if english:
             doc.append(Para("reads: " + c.reading(), dim=True))
@@ -645,39 +689,62 @@ def doc_for_compositions(comps: Sequence[Composition], sources: Sequence[str] | 
 
 def doc_for_stream(stream, title: str | None = None, alpt_text: str | None = None,
                    style: BlockStyle | None = None, blocks: bool = True, theme: str = "dark",
-                   english: bool = False) -> Doc:
-    """A stream rendered as an audit document: each event with its blocks."""
+                   english: bool = False, mode: str = "text", cell: int = 48) -> Doc:
+    """A stream as a document.
+
+    First the *conversation*: every ASSERT as one line of script (the words
+    with their bound literals), the way it would be read.  Then the audit:
+    each event with its ALP/T and, for AMEND/GROUND, the new symbols."""
     from .alpt import event_block, fmt_term
-    st = style or BlockStyle(head=56, theme=theme)
     doc: Doc = [Heading(title or f"ALP stream {stream.stream_id.hex()[:16]}…", 1),
-                Para(f"{len(stream)} events · profile {stream.profile} · {len(stream.lexicon())} symbols", dim=True),
-                Rule()]
+                Para(f"{len(stream)} events · profile {stream.profile} · {len(stream.lexicon())} symbols", dim=True)]
+    # conversation
+    words: list = []
+    for e in stream.ordered():
+        if e.type.name != "ASSERT":
+            continue
+        for pair in e.payload:
+            sym = stream.state.symbol(pair[0].data)
+            if sym is not None:
+                words.append((sym, pair[1]))
+        words.append(None)
+    if words:
+        doc.append(Rule())
+        doc.append(Chars(words, cell=cell, theme=theme))
+    if not blocks:
+        if alpt_text:
+            doc.append(Rule()); doc.append(Heading("ALP/T", 2)); doc.append(Para(alpt_text, mono=True))
+        return doc
+    doc.append(Rule())
+    doc.append(Heading("events", 2))
     for e in stream.ordered():
         doc.append(Heading(f"@{e.eid_hex(16)}  {e.type.name}", 3))
-        doc.append(Para("\n".join(event_block(e, author_name=stream.author_name(e.author))[1:]), mono=True))
+        doc.append(Para("\n".join(event_block(e, author_name=stream.author_name(e.author))[1:]), mono=True, dim=True))
         comps = e.compositions()
-        if blocks and comps:
-            doc.append(Blocks(comps, st))
+        if comps:
+            if mode == "block":
+                doc.append(Blocks(comps, style or BlockStyle(head=56, theme=theme)))
+            else:
+                doc.append(Chars([(c, True) for c in comps], cell=cell, theme=theme))
             if english:
                 for c in comps:
                     doc.append(Para("reads: " + c.reading(), dim=True))
-        if e.type.name == "ASSERT" and blocks:
-            syms = []
-            vals = []
-            for pair in e.payload:
-                sym = stream.state.symbol(pair[0].data)
-                if sym is not None:
-                    syms.append(sym)
-                    vals.append(pair[1])
-            if syms:
-                doc.append(Blocks(syms, st))
-                doc.append(Para("   ".join(f"{s.transliterate(8)} ← {fmt_term(v)}" for s, v in zip(syms, vals)), mono=True, dim=True))
-        doc.append(Spacer(6))
+        doc.append(Spacer(4))
     if alpt_text:
         doc.append(Rule())
         doc.append(Heading("ALP/T", 2))
         doc.append(Para(alpt_text, mono=True))
     return doc
+
+
+def doc_for_chart(theme: str = "dark") -> Doc:
+    """The character chart: heads, then every modifier class as a transformation of one head, then literals."""
+    from . import script
+    return [Heading(f"ALP script — character chart, inventory v{inv.INVENTORY_VERSION}", 1),
+            Para("Row 1: the twelve heads.  Following rows: each modifier class applied to one head "
+                 "(modal · scalar · temporal · causal · epistemic · illocutionary · valence · relational · deictic · logical · affect).  "
+                 "Last row: numerals, names (cartouches), a reference seal, a unit.", dim=True),
+            Img(script.render_chart(script.CharStyle(cell=72, theme=theme, frame=True)))]
 
 
 def doc_for_inventory(theme: str = "light") -> Doc:

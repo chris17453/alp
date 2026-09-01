@@ -1,52 +1,52 @@
-@2058c129 JOIN       by ops at 2026-08-31T14:20:00Z
-@de2ea83a AMEND      by ops at 2026-08-31T14:20:02Z
+@23f89d5a JOIN       by ops at 2026-08-31T14:20:00Z
+@8f2370be AMEND      by ops at 2026-08-31T14:20:02Z
   The checkout service is down now.
-@2af23031 ASSERT     by ops at 2026-08-31T14:20:03Z
-  The checkout service is down now.  [.='checkout']
-@02123f7a AMEND      by ops at 2026-08-31T14:20:04Z
+@dd0c198a ASSERT     by ops at 2026-08-31T14:20:03Z
+  The checkout service is down now.  =  {"bind" {"." "checkout"}}
+@d570d7d1 AMEND      by ops at 2026-08-31T14:20:04Z
   Latency is spiking in the eu region.
-@fd4c6b43 ASSERT     by ops at 2026-08-31T14:20:05Z
-  Latency is spiking in the eu region.  [SCOPE='eu']
-@c8cdeaae AMEND      by ops at 2026-08-31T14:20:06Z
+@b73f81dc ASSERT     by ops at 2026-08-31T14:20:05Z
+  Latency is spiking in the eu region.  =  {"bind" {"LOC" "eu"}}
+@84f42f0a AMEND      by ops at 2026-08-31T14:20:06Z
   Urgency is high and the deadline is tomorrow.
-@18992852 ASSERT     by ops at 2026-08-31T14:20:07Z
+@89392c16 ASSERT     by ops at 2026-08-31T14:20:07Z
   Urgency is high and the deadline is tomorrow.
-@57542cdf AMEND      by ops at 2026-08-31T14:20:08Z
+@395c52aa AMEND      by ops at 2026-08-31T14:20:08Z
   Urgency is high and the deadline is tomorrow.
-@045d74d5 ASSERT     by ops at 2026-08-31T14:20:09Z
+@e742f6ab ASSERT     by ops at 2026-08-31T14:20:09Z
   Urgency is high and the deadline is tomorrow.
-@ffa9bb5b AMEND      by ops at 2026-08-31T14:20:10Z
+@ff7ee967 AMEND      by ops at 2026-08-31T14:20:10Z
   We suspect the deploy caused the outage.
-@af1292e8 ASSERT     by ops at 2026-08-31T14:20:11Z
+@8b80172d ASSERT     by ops at 2026-08-31T14:20:11Z
   We suspect the deploy caused the outage.
-@cf6d911c AMEND      by ops at 2026-08-31T14:20:12Z
+@725193d9 AMEND      by ops at 2026-08-31T14:20:12Z
   The rollback is permitted.
-@ab320d10 ASSERT     by ops at 2026-08-31T14:20:13Z
+@7dcb9559 ASSERT     by ops at 2026-08-31T14:20:13Z
   The rollback is permitted.
-@8d208439 AMEND      by ops at 2026-08-31T14:20:14Z
+@dce07ac6 AMEND      by ops at 2026-08-31T14:20:14Z
   The incident was resolved and observed by the operator.
-@ff4ed706 ASSERT     by ops at 2026-08-31T14:20:15Z
+@6a471271 ASSERT     by ops at 2026-08-31T14:20:15Z
   The incident was resolved and observed by the operator.
-@04299d69 AMEND      by ops at 2026-08-31T14:20:16Z
+@158ee50e AMEND      by ops at 2026-08-31T14:20:16Z
   The incident was resolved and observed by the operator.
-@038e446c ASSERT     by ops at 2026-08-31T14:20:17Z
+@1739c228 ASSERT     by ops at 2026-08-31T14:20:17Z
   The incident was resolved and observed by the operator.
-@52e05638 AMEND      by ops at 2026-08-31T14:20:18Z
+@b4537693 AMEND      by ops at 2026-08-31T14:20:18Z
   Please confirm the customer impact is low.
-@c4854bf8 ASSERT     by ops at 2026-08-31T14:20:19Z
+@cc5ed0d0 ASSERT     by ops at 2026-08-31T14:20:19Z
   Please confirm the customer impact is low.
-@4421c0b1 AMEND      by ops at 2026-08-31T14:20:20Z
+@1899c844 AMEND      by ops at 2026-08-31T14:20:20Z
   Zorblat frobnicates the widget.
-@a058fc07 ASSERT     by ops at 2026-08-31T14:20:21Z
-  Zorblat frobnicates the widget.  [.='zorblat frobnicates widget']
-@01ae323f CHECKPOINT by ops at 2026-08-31T14:20:22Z
-  checkpoint: 11 symbols, digest d4f61b82c348163a
+@34b346c9 ASSERT     by ops at 2026-08-31T14:20:21Z
+  Zorblat frobnicates the widget.  =  {"bind" {"." "zorblat frobnicates widget"}}
+@98d4b56c CHECKPOINT by ops at 2026-08-31T14:20:22Z
+  checkpoint: 11 symbols, digest 984067e8199fea77
 $PROCESS.NEGATE.NOW.DURATIVE.BAD
   = a process that is negated (not holding), at present, extended in time, bad [gloss: "The checkout service is down now."]
-a process that is negated (not holding), at present, extended in time, bad [gloss: "The checkout service is down now."]  [.='checkout']
-$QUANTITY.INCREASE.DURATIVE :SCOPE ($PLACE)
-  = a quantity that is rising, extended in time over (a place) [gloss: "Latency is spiking in the eu region."]
-a quantity that is rising, extended in time over (a place) [gloss: "Latency is spiking in the eu region."]  [SCOPE='eu']
+a process that is negated (not holding), at present, extended in time, bad [gloss: "The checkout service is down now."]  =  {"bind" {"." "checkout"}}
+$QUANTITY.INCREASE.DURATIVE :LOC ($PLACE)
+  = a quantity that is rising, extended in time at (a place) [gloss: "Latency is spiking in the eu region."]
+a quantity that is rising, extended in time at (a place) [gloss: "Latency is spiking in the eu region."]  =  {"bind" {"LOC" "eu"}}
 $PROPERTY.HIGH.PUNCTUAL.REQUIRED
   = a property that is high, instantaneous, required [gloss: "Urgency is high and the deadline is tomorrow."]
 a property that is high, instantaneous, required [gloss: "Urgency is high and the deadline is tomorrow."]
@@ -70,4 +70,4 @@ $SIGN.KNOWN.ASSERT.REQUEST :ARG1 ($RELATION.LOW.CAUSE.HARM :SCOPE ($AGENT))
 a signal that is known, asserted, requested whose patient is (a relation that is low, causing, harmful over (an agent)) [gloss: "Please confirm the customer impact is low."]
 $ENTITY
   = a thing [gloss: "Zorblat frobnicates the widget."]
-a thing [gloss: "Zorblat frobnicates the widget."]  [.='zorblat frobnicates widget']
+a thing [gloss: "Zorblat frobnicates the widget."]  =  {"bind" {"." "zorblat frobnicates widget"}}

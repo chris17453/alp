@@ -1,14 +1,31 @@
-"""The closed primitive inventory (RFC-ALP-001 v1.1 §4) and role codes (§5.3).
+"""The closed primitive inventory (RFC-ALP-001 §4) and role codes (§5.3).
 
-76 primitives across 9 classes.  PIDs are two-byte codes: class byte, member
-byte.  Codes double as Unicode PUA offsets for the script (§6.3).
+Inventory **version 2**.  Version 1 is the RFC's 76 primitives in 9 classes.
+Version 2 keeps every v1 code unchanged and adds, per the RFC's own rule that
+extension is a version bump (§4.1):
+
+  class 0x09 RELATIONAL   relation types beyond causation: equal, greater, part, has, near, inside…
+  class 0x0A DEICTIC      pointing: self, addressee, this, that, which, same, other, each, any, generic
+  class 0x0B LOGICAL      and, or, xor, iff, implies, only, except
+  class 0x0C AFFECT       joy, fear, anger, trust, surprise, disgust, sadness, calm
+  class 0x08 +            literal markers NUM, STR, TIME, UNIT, EREF (structural; values are bound, §5.4)
+  roles 0x07-0x0C         LOC, TIME, MANNER, PURPOSE, SOURCE, GOAL
+
+Why these and not a bigger vocabulary: the head set stays at 12 kinds of
+thing, and everything specific (people, numbers, measurements, dates, places
+by name) is a *literal bound to a role* rather than a primitive.  The
+primitives are for what can be composed; literals are for what can only be
+named or counted.
+
+PIDs are two-byte codes: class byte, member byte.  Codes double as Unicode PUA
+offsets for the script (§6.3).  ``V1_PRIMITIVES`` is the RFC's original set.
 """
 
 from __future__ import annotations
 
 from .alpb import Pid
 
-INVENTORY_VERSION = 1
+INVENTORY_VERSION = 2
 PROTOCOL_VERSION = 1
 
 # -- classes ------------------------------------------------------------------
@@ -21,6 +38,10 @@ CLASS_EPISTEMIC = 0x05
 CLASS_ILLOCUTIONARY = 0x06
 CLASS_VALENCE = 0x07
 CLASS_STRUCTURAL = 0x08
+CLASS_RELATIONAL = 0x09
+CLASS_DEICTIC = 0x0A
+CLASS_LOGICAL = 0x0B
+CLASS_AFFECT = 0x0C
 
 CLASS_NAMES = {
     CLASS_ONTOLOGICAL: "ontological",
@@ -32,6 +53,10 @@ CLASS_NAMES = {
     CLASS_ILLOCUTIONARY: "illocutionary",
     CLASS_VALENCE: "valence",
     CLASS_STRUCTURAL: "structural",
+    CLASS_RELATIONAL: "relational",
+    CLASS_DEICTIC: "deictic",
+    CLASS_LOGICAL: "logical",
+    CLASS_AFFECT: "affect",
 }
 
 # -- primitives: name -> (code, sense) ----------------------------------------
@@ -122,17 +147,72 @@ _TABLE: list[tuple[str, int, str]] = [
     ("SUPERSEDE", 0x0803, "Marks the supersession link"),
     ("RESIDUE", 0x0804, "Marks untranslated meaning"),
 ]
+V1_COUNT = len(_TABLE)
+assert V1_COUNT == 76
+
+_TABLE_V2: list[tuple[str, int, str]] = [
+    # 0x08 structural: literal markers (the value itself is bound at ASSERT, §5.4)
+    ("NUM", 0x0805, "A bound number follows"),
+    ("STR", 0x0806, "A bound name or text follows"),
+    ("TIME", 0x0807, "A bound instant or date follows"),
+    ("UNIT", 0x0808, "A bound unit of measure follows"),
+    ("EREF", 0x0809, "Points at an existing EID (an earlier utterance)"),
+    # 0x09 relational
+    ("EQUAL", 0x0900, "Same as, equal to"),
+    ("GREATER", 0x0901, "More than, above on a scale"),
+    ("LESS", 0x0902, "Less than, below on a scale"),
+    ("PART", 0x0903, "Is a part of"),
+    ("HAS", 0x0904, "Possesses, contains, owns"),
+    ("MEMBER", 0x0905, "Is a member or instance of"),
+    ("NEAR", 0x0906, "Close to"),
+    ("INSIDE", 0x0907, "Within"),
+    ("OUTSIDE", 0x0908, "Beyond, external to"),
+    ("ABOVE", 0x0909, "Spatially over"),
+    ("BELOW", 0x090A, "Spatially under"),
+    ("TOWARD", 0x090B, "Directed at"),
+    # 0x0A deictic
+    ("SELF", 0x0A00, "The speaker"),
+    ("ADDRESSEE", 0x0A01, "The one spoken to"),
+    ("THIS", 0x0A02, "The proximal referent"),
+    ("THAT", 0x0A03, "The distal referent"),
+    ("WHICH", 0x0A04, "The queried variable"),
+    ("SAME", 0x0A05, "The one already mentioned"),
+    ("OTHER", 0x0A06, "A different one"),
+    ("EACH", 0x0A07, "Distributively, every one"),
+    ("ANY", 0x0A08, "An arbitrary one"),
+    ("GENERIC", 0x0A09, "The kind, not an instance"),
+    # 0x0B logical
+    ("AND", 0x0B00, "Conjunction"),
+    ("OR", 0x0B01, "Inclusive disjunction"),
+    ("XOR", 0x0B02, "Exactly one of"),
+    ("IFF", 0x0B03, "If and only if"),
+    ("IMPLIES", 0x0B04, "Entails"),
+    ("ONLY", 0x0B05, "Exclusively"),
+    ("EXCEPT", 0x0B06, "With the exclusion of"),
+    # 0x0C affect
+    ("JOY", 0x0C00, "Gladness"),
+    ("FEAR", 0x0C01, "Fear, anxiety"),
+    ("ANGER", 0x0C02, "Anger"),
+    ("TRUST", 0x0C03, "Trust, confidence in"),
+    ("SURPRISE", 0x0C04, "Surprise"),
+    ("DISGUST", 0x0C05, "Aversion"),
+    ("SADNESS", 0x0C06, "Sorrow, loss"),
+    ("CALM", 0x0C07, "Ease, absence of arousal"),
+]
+_TABLE = _TABLE + _TABLE_V2
 
 PRIMITIVES: dict[str, Pid] = {name: Pid(code) for name, code, _ in _TABLE}
 SENSES: dict[Pid, str] = {Pid(code): sense for _, code, sense in _TABLE}
 NAMES: dict[Pid, str] = {Pid(code): name for name, code, _ in _TABLE}
-
-assert len(PRIMITIVES) == 76
+V1_PRIMITIVES: dict[str, Pid] = {name: Pid(code) for name, code, _ in _TABLE[:V1_COUNT]}
+LITERAL_MARKERS = {PRIMITIVES[n] for n in ("NUM", "STR", "TIME", "UNIT", "EREF")}
 
 # -- roles --------------------------------------------------------------------
 ROLES: dict[str, int] = {
     "ARG0": 0x01, "ARG1": 0x02, "ARG2": 0x03,
     "SCOPE": 0x04, "MEASURE": 0x05, "CONDITION": 0x06,
+    # v2
+    "LOC": 0x07, "TIME": 0x08, "MANNER": 0x09, "PURPOSE": 0x0A, "SOURCE": 0x0B, "GOAL": 0x0C,
 }
 ROLE_NAMES: dict[int, str] = {v: k for k, v in ROLES.items()}
 ROLE_SENSES: dict[str, str] = {
@@ -140,8 +220,14 @@ ROLE_SENSES: dict[str, str] = {
     "ARG1": "Patient, effect, or second argument",
     "ARG2": "Instrument, recipient, third argument",
     "SCOPE": "The domain over which the head applies",
-    "MEASURE": "Unit or scale reference",
+    "MEASURE": "Unit, scale, or amount",
     "CONDITION": "Precondition on the head",
+    "LOC": "Where",
+    "TIME": "When",
+    "MANNER": "How, by what means",
+    "PURPOSE": "What for",
+    "SOURCE": "From where or whom",
+    "GOAL": "To where or whom",
 }
 
 MAX_DEPTH = 8
@@ -194,7 +280,7 @@ def inventory_table() -> str:
             current = cls
             lines.append(f"\nclass 0x{cls:02X}  {CLASS_NAMES[cls]}")
         lines.append(f"  0x{code:04X}  U+{0xE000 + code:04X}  {name:<12} {sense}")
-    lines.append(f"\n{len(_TABLE)} primitives, inventory version {INVENTORY_VERSION}")
+    lines.append(f"\n{len(_TABLE)} primitives ({V1_COUNT} in v1 + {len(_TABLE) - V1_COUNT} in v2), inventory version {INVENTORY_VERSION}")
     lines.append("\nroles")
     for rname, rcode in ROLES.items():
         lines.append(f"  0x{rcode:02X}  {rname:<10} {ROLE_SENSES[rname]}")

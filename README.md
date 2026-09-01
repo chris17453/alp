@@ -1,81 +1,124 @@
 # alp — Agent Lexicon Protocol toolkit
 
-A Python implementation of **RFC-ALP-001 v1.1** (`docs/rfc-alp-001.pdf`): a
-compound, aggregative language for machine agents.  Meaning is composed from a
-closed inventory of **76 semantic primitives** into trees with ordered roles;
-each composed symbol is identified by the hash of its tree; symbols travel over
-an append-only causal event stream; and the whole thing has a written
-**script** in which a symbol renders as one visual block.
+A Python implementation of **RFC-ALP-001** (`docs/rfc-alp-001.pdf`): a compound,
+aggregative language for machine agents.  Meaning is composed from a closed
+inventory of semantic primitives into trees with ordered roles; each composed
+symbol is identified by the hash of its tree; symbols travel over an
+append-only causal event stream; and the language has a written **script** in
+which one composed symbol is one character.
 
-![glyph key](examples/output/glyph-key.png)
+![character chart](examples/output/character-chart.png)
+
+## The script
+
+One composition = **one square character**, composed — not stacked — the way
+hanzi fuse components by position, Egyptian quadrats pack a group into one
+block, and cuneiform builds every sign from wedges.  The head radical (one of
+twelve kinds of thing) sits in the centre and every modifier class transforms
+it in its own way:
+
+| class | what it does to the head |
+|---|---|
+| scalar | **scale and fill** — NONE tiny · LOW small · HIGH large · EXTREME doubled · ALL filled · SOME hatched · BOUNDED bracketed · UNBOUNDED open · INCREASE/DECREASE a rising/falling tip |
+| epistemic | **stroke** — KNOWN heavy · INFERRED dashed · UNKNOWN dotted · CONTESTED doubled · OBSERVED eye · PREDICTED forward tip |
+| modal | **enclosure** — NECESSARY box · POSSIBLE dashed box · HYPOTHETICAL corners · PERMITTED open-top · FORBIDDEN lidded · DESIRED box+dot · **NEGATE slashes the head** |
+| valence | **crown** above — GOOD ^ · BAD v · REQUIRED = · OPTIONAL dashed · SAFE roof · HARM zigzag · COST/BENEFIT ticks |
+| temporal | **ground line** the head stands on — dot left/centre/right = PAST/NOW/FUTURE · doubled DURATIVE · tick PUNCTUAL · end-stops BEGIN/END · reference bars BEFORE/DURING/AFTER |
+| illocutionary | **left radical** (speech) — bar ASSERT · hook REQUEST · doubled COMMIT · top hook QUERY · tick WARN · crossed REFUSE · dashed PROPOSE · check ACKNOWLEDGE |
+| causal / relational | **connector** on the right — arrows for causation; the relation's form for equal / greater / less / part / has / member / near / inside / … |
+| deictic / affect | **inner marks** — upper: I / you / this / that / which; lower: joy / fear / anger / trust / … |
+| logical | small marks at the top-left corner — and / or / xor / iff / implies / only / except |
+| roles | ARG0 and ARG1 are seeds **inside the head's lobes**; other roles form a reduced row beneath, each seed with its role marker. A nested composition's own character follows (depth-first) — a composition is a short *word*, never a stack |
+| literals | **numbers** as wedge counts · **names** as cartouches with a visual hash of the name · **times**, **units**, **reference seals** — bound values written after the word they bind to |
+
+`examples/output/root-cause.png` — *"deploy 4471 is the suspected cause of the outage"*:
+
+![root cause](examples/output/root-cause.png)
+
+A whole text is a few lines of characters (`examples/output/complex-script.png`):
+
+![complex thoughts](examples/output/complex-script.png)
 
 ## What English becomes
 
 ```
-$ alp translate "We suspect the deploy caused the outage."
-eddb727e  $RELATION.PAST.CAUSE.INFERRED :ARG0 ($EVENT.PUNCTUAL) :ARG1 ($STATE.NEGATE.BAD)
+$ alp translate "We will meet Alice at 12:00 on 2026-09-01 in Berlin."
+8c080279  $EVENT.FUTURE.PUNCTUAL.NEAR :ARG0 ($GROUP.SELF) :ARG1 ($ENTITY) :LOC ($ENTITY) :TIME ($MOMENT)
+          bound:   ARG1='alice'  LOC='berlin'  TIME=2026-09-01T12:00
 
-$ alp translate "If the error rate rises, page the on-call engineer."
-477d2d30  $SIGN.PUNCTUAL.WARN :ARG1 ($AGENT) :CONDITION ($PROCESS.INCREASE :ARG0 ($QUANTITY.DURATIVE :SCOPE ($EVENT.BAD)))
-          bound:   ARG1='on-call'
+$ alp translate "If the load rises above 80%, restart the server or roll back the release."
+5d44fe54  $GROUP.OR :ARG0 ($PROCESS.REPEAT.BEGIN :ARG1 ($ENTITY)
+                          :CONDITION ($RELATION.ABOVE :ARG0 ($QUANTITY.DURATIVE) :ARG1 ($STATE :MEASURE ($QUANTITY))))
+                    :ARG1 ($PROCESS.PAST :ARG1 ($EVENT.PUNCTUAL))
+          bound:   ARG0/CONDITION/ARG1/MEASURE = 80 %
 ```
 
-A sentence becomes a **tree of primitives**: noun phrases are nodes, adjectives
-and tense attach to the noun they qualify, prepositions become roles, causal
-and conditional connectives become `RELATION` nodes or `CONDITION` roles.
-**English never enters the symbol.**  Proper names and unknown words are bound
-as *data* at ASSERT time (§5.4) — `on-call` above is a value attached to the
-symbol, not part of it — so the lexicon is built from primitives alone.  The
-one metric that matters is the *English leakage rate* the tool prints with
-`--stats`.
+A sentence becomes a **tree of primitives**: noun phrases are nodes; adjectives,
+tense, quantifiers and feelings attach to the node they qualify; prepositions
+become roles (LOC, TIME, SOURCE, GOAL, PURPOSE, MANNER, SCOPE, MEASURE …);
+causal, conditional and disjunctive connectives become RELATION / CONDITION /
+OR structure; pronouns become deixis (SELF, ADDRESSEE, THIS, THAT, WHICH).
 
-The same tree drawn in the script (`alp render '...' --png`):
+**English never enters a symbol.**  Everything that can only be named or
+counted — people, places, numbers, measurements, dates — is a *literal bound to
+a role* at ASSERT time (§5.4), never a primitive.  The symbol for "12 servers
+in Berlin" is `$ENTITY :MEASURE $QUANTITY :LOC $ENTITY`; `12` and `berlin` are
+values attached when it is asserted.  `--stats` prints the English-leakage
+rate; the RFC's own one-head translator is kept as `--simple`.
 
-![root cause](examples/output/root-cause.png)
+## Inventory v2
 
-Head glyph in the centre; modal/epistemic marks above; causal/illocutionary
-left; scalar right; valence lower-right; temporal below; `NEGATE` is the one
-mark that crosses the head; roles descend beneath as ordered slots (nested
-compositions render as nested blocks).  No letters, one ink.  English appears
-only in the [glyph key](examples/output/glyph-key.png).
+The RFC's v1 inventory (76 primitives, 6 roles) can compose concepts but not
+say *who, how many, which one, compared to what, or how it feels*.  Per the
+RFC's own rule (§4.1: extension is a version bump) this toolkit ships
+**inventory version 2**: every v1 code unchanged, plus
+
+| class | members |
+|---|---|
+| 0x09 relational | EQUAL GREATER LESS PART HAS MEMBER NEAR INSIDE OUTSIDE ABOVE BELOW TOWARD |
+| 0x0A deictic | SELF ADDRESSEE THIS THAT WHICH SAME OTHER EACH ANY GENERIC |
+| 0x0B logical | AND OR XOR IFF IMPLIES ONLY EXCEPT |
+| 0x0C affect | JOY FEAR ANGER TRUST SURPRISE DISGUST SADNESS CALM |
+| 0x08 structural + | NUM STR TIME UNIT EREF (literal markers) |
+| roles 0x07–0x0C | LOC TIME MANNER PURPOSE SOURCE GOAL |
+
+The head set stays at twelve.  `alp key` lists everything with glyph, sense
+and codepoint.
 
 ## Examples you can look at
 
-Everything in [`examples/output/`](examples/output/) is generated by
-`sh examples/make_examples.sh`:
+`examples/output/` (regenerate with `sh examples/make_examples.sh`):
 
 | File | What it is |
 |---|---|
-| [`glyph-key.png`](examples/output/glyph-key.png) / `.pdf` / [`glyph-sheet.svg`](examples/output/glyph-sheet.svg) | All 76 glyphs with name, sense, class position, PUA codepoint |
-| [`urgency.png`](examples/output/urgency.png) [`deadline.png`](examples/output/deadline.png) [`outage.png`](examples/output/outage.png) [`escalate.png`](examples/output/escalate.png) [`root-cause.png`](examples/output/root-cause.png) [`blast-radius.png`](examples/output/blast-radius.png) | RFC Appendix A compositions as script blocks; `.txt` has SID, canonical bytes, reading |
-| [`incident-script.png`](examples/output/incident-script.png) / `.pdf`, [`story-script.png`](examples/output/story-script.png) | Two English texts as script — blocks plus the normative ASCII transliteration, no English |
-| [`incident-linear.png`](examples/output/incident-linear.png), [`story-linear.png`](examples/output/story-linear.png) | The §6.4 fallback: the same symbols as a linear glyph strip |
-| [`incident-script-with-english.png`](examples/output/incident-script-with-english.png), [`story-script-with-english.pdf`](examples/output/story-script-with-english.pdf) | Same, with the source sentence and a generated reading beside each block (`--english`) |
-| [`incident-translation.txt`](examples/output/incident-translation.txt), [`story-translation.txt`](examples/output/story-translation.txt) | Trees, bound names, leakage stats |
-| [`incident.alpb`](examples/output/incident.alpb) → [`incident.alpt`](examples/output/incident.alpt) | A 22-event ALP/B stream (SID-128) and its lossless ALP/T projection |
-| [`incident-archive-sid256.alpt`](examples/output/incident-archive-sid256.alpt) | Re-profiled to SID-256 for archival (§3.5) |
-| [`incident-audit.pdf`](examples/output/incident-audit.pdf) / `.png` | Stream audit: every event, its blocks, the ALP/T |
-| [`incident-decoded.txt`](examples/output/incident-decoded.txt) | ALP → English (stored glosses, then generated readings) |
-| [`incident-verify.txt`](examples/output/incident-verify.txt) [`incident-stats.txt`](examples/output/incident-stats.txt) [`incident-forks.txt`](examples/output/incident-forks.txt) | Hash/canonical/round-trip check, sizes, synonymy-fork scan |
-| [`appendix-d.alpt`](examples/output/appendix-d.alpt) / `.alpb` / [`.pdf`](examples/output/appendix-d.pdf) / `.png` | The RFC's worked 23-event conversation with real hashes: concurrent fork, REGROUND repair, CHECKPOINT, model substitution |
+| [`character-chart.png`](examples/output/character-chart.png) / `.pdf` | The script: twelve heads, then every modifier class as a transformation of one head, then numerals, cartouches, a seal, a unit |
+| [`glyph-key.png`](examples/output/glyph-key.png), [`glyph-sheet.svg`](examples/output/glyph-sheet.svg) | Every primitive with name, sense, codepoint (the only place English appears) |
+| [`urgency.png`](examples/output/urgency.png) [`deadline.png`](examples/output/deadline.png) [`outage.png`](examples/output/outage.png) [`escalate.png`](examples/output/escalate.png) [`root-cause.png`](examples/output/root-cause.png) [`blast-radius.png`](examples/output/blast-radius.png) | RFC Appendix A compositions as single large characters |
+| [`complex-script.png`](examples/output/complex-script.png), [`story-script.png`](examples/output/story-script.png), [`incident-script.png`](examples/output/incident-script.png) / `.pdf` | Three English texts as running script with the ALP/T listing beneath |
+| `*-script-with-english.*` | The same, one utterance per row with source sentence and generated reading (`--english --style each`) |
+| [`complex-translation.txt`](examples/output/complex-translation.txt) etc. | Trees, bound literals, leakage stats |
+| [`story-blocks-expanded.png`](examples/output/story-blocks-expanded.png) | The expanded §6.2 block form (one glyph per primitive) for comparison |
+| [`incident.alpb`](examples/output/incident.alpb) → [`incident.alpt`](examples/output/incident.alpt) → [`incident-conversation.png`](examples/output/incident-conversation.png) | A stream in binary, in text, and read as a conversation |
+| [`incident-audit.pdf`](examples/output/incident-audit.pdf), `incident-decoded.txt`, `incident-verify.txt`, `incident-stats.txt`, `incident-forks.txt`, `incident-archive-sid256.alpt` | Audit, ALP → English, hash/round-trip check, sizes, fork scan, SID-256 archive |
+| [`appendix-d.alpt`](examples/output/appendix-d.alpt) / `.alpb` / [`.pdf`](examples/output/appendix-d.pdf) / `.png` | The RFC's worked 23-event conversation with real hashes |
 
 ## Install and run
 
 ```sh
 uv sync
-uv run alp --help
-uv run pytest                                    # 48 tests: RFC reference SIDs, byte-level round trips, glyphs, CLI
-
-uv run alp translate "urgency is high" --stats   # English -> tree
-uv run alp render -f notes.txt --png notes.png   # English -> script image   (--english adds the key, --pdf, --linear)
+uv run pytest                                          # 50 tests
+uv run alp translate "urgency is high" --stats         # English -> tree
+uv run alp render -f notes.txt --png notes.png         # English -> script   (--english, --style each|block, --cell N, --pdf)
+uv run alp compose '$STATE.NEGATE.NOW.BAD :SCOPE $PROCESS' --png outage.png --cell 160
+uv run alp chart --png chart.png                       # the character chart
+uv run alp key --png key.png --svg glyphs.svg          # the key
 uv run alp encode -f notes.txt -o notes.alpb --png notes.png --pdf notes.pdf --stats
-uv run alp export notes.alpb -o notes.alpt       # ALP/B -> ALP/T (lossless; import gives identical bytes)
+uv run alp export notes.alpb -o notes.alpt             # ALP/B -> ALP/T (lossless; import gives identical bytes)
 uv run alp import notes.alpt -o again.alpb
-uv run alp decode notes.alpb --events            # ALP -> English
+uv run alp render notes.alpt --png conversation.png    # a stream read as conversation
+uv run alp decode notes.alpb --events                  # ALP -> English
 uv run alp verify notes.alpt
-uv run alp compose '$STATE.NEGATE.NOW.BAD :SCOPE $PROCESS' --png outage.png
-uv run alp key --png key.png --svg glyphs.svg
-uv run alp forks notes.alpb                      # §12.6 synonymy-fork candidates
+uv run alp forks notes.alpb                            # §12.6 synonymy-fork candidates
 ```
 
 ## Package
@@ -83,39 +126,46 @@ uv run alp forks notes.alpb                      # §12.6 synonymy-fork candidat
 | Module | What it does |
 |---|---|
 | `alp.alpb` | Canonical ALP/B TLV codec (CBOR-shaped, §7.5), strict `E_NONCANONICAL`, REF kind 4 = PID |
-| `alp.inventory` | The 76 primitives, classes, roles, PUA codepoints |
+| `alp.inventory` | Inventory v2: primitives, classes, roles, PUA codepoints; `V1_PRIMITIVES` is the RFC set |
 | `alp.composition` | Composition records, canonical form, SID, transliteration parser, English readings |
-| `alp.glyphs` | The script: one stroke-program glyph per primitive; Pillow / SVG / PDF emitters |
-| `alp.translate` | `Translator` (compositional, names bound as data) and `SimpleTranslator` (the RFC's Appendix E one) |
+| `alp.script` | **The character script**: composer, numerals, cartouches, seals, running text, chart |
+| `alp.glyphs` | One standalone glyph per primitive (expanded block form, key, SVG) |
+| `alp.translate` | `Translator` (compositional; literals bound as data) and `SimpleTranslator` (RFC Appendix E) |
 | `alp.events` | Frames, EIDs, causal DAG, frontier, fold with EID tiebreak, CHECKPOINT digests, profiles, `reprofile` |
 | `alp.alpt` | ALP/T writer + parser, byte-identical round trip, SID/EID mismatch detection |
 | `alp.lexicon` | Structural near-duplicate scan for synonymy forks (§12.6) |
-| `alp.render` | Blocks per §6.2, linear fallback per §6.4, glyph key; PNG (Pillow) and PDF (reportlab) documents |
-| `alp.cli` | `translate encode decode export import verify render compose key forks lexicon stats inventory` |
+| `alp.render` | Documents: running script, per-utterance rows, expanded blocks; PNG (Pillow) and PDF (reportlab) |
+| `alp.cli` | `translate encode decode export import verify render compose chart key forks lexicon stats inventory` |
 
 ```python
-from alp import Composition, Translator, Stream, alpt, render
+from alp import Composition, Translator, Stream, alpt, script
 
 (t,) = Translator().translate("We suspect the deploy caused the outage.")
 t.composition.transliterate()   # '$RELATION.PAST.CAUSE.INFERRED :ARG0 ($EVENT.PUNCTUAL) :ARG1 ($STATE.NEGATE.BAD)'
-t.composition.sid_hex(8)        # 'eddb727e'
-t.value                         # True  (no English bound)
+t.value                         # True — nothing bound; names/numbers would appear here
+script.render_word(t.composition, script.CharStyle(cell=96)).save("blame.png")
 
 s = Stream(sid_width=16)
 s.join("a000", competence=list(alp.PRIMITIVES.values()))
 s.amend("a000", [t.composition]); s.assert_("a000", [(t.composition, t.value)])
 assert alpt.loads(alpt.dumps(s)).stream.to_bytes() == s.to_bytes()
-render.save_png(render.doc_for_compositions([t.composition]), "blame.png")
 ```
 
 ## Implementation decisions
 
-* **Gloss out of the hash, residue in** (§3.1); **roles ordered, modifiers a set** (§3.3); **inventory closed at 76** (§4.1) — asserted in code and tests.
-* **Names are data, not residue.** The default translator binds proper names at ASSERT time so no English enters a symbol; `--names residue` gives the RFC's §5.5 behaviour, `--simple` the RFC's own front end.
+* **Gloss out of the hash, residue in** (§3.1); **roles ordered, modifiers a set** (§3.3); **inventory closed per version** (§4.1) — asserted in code and tests.  Inventory v2 is a version bump, not an open inventory; `INVENTORY_VERSION` is checked at CHECKPOINT.
+* **Literals are data, not symbols.**  Numbers, names, times, units and references are bound to a role path at ASSERT time (`{"bind": {path: literal}}`) and have their own characters.  `--names residue` restores the RFC's §5.5 behaviour.
 * **EIDs hash the body as transmitted at the stream's profile**; `Stream.reprofile` / `alp export --archive` re-hash to SID-256 for storage.
-* **Authors are symbols** (`$AGENT ~"name"`), announced in `JOIN.caps.agent` so they resolve from any projection.
+* **Authors are symbols** (`$AGENT ~"name"`), announced in `JOIN.caps.agent`.
 * **ALP/T extensions** for losslessness: `profile`/`stream` header, `fl`/`sig` lines, `@hex` EID terms, `{k v}` maps, `>` raw-payload escape.
-* **§12.6 synonymy forking** is unsolved in the RFC; `alp forks` is the partial mitigation that is actually buildable — a structural near-duplicate scan feeding REGROUND.
-* **The script is procedural** — no OpenType font yet; `glyph-sheet.svg` is the starting point for one.
+* **§12.6 synonymy forking** is unsolved in the RFC; `alp forks` is a structural near-duplicate scan feeding REGROUND.
+* **The script is procedural** — no font yet.  Every character is a stroke program on a 17×17 grid; `glyph-sheet.svg` is the start of a font.
+
+## Known limits
+
+The translator is rule-based: complement clauses ("she told me that …"),
+coordination inside noun phrases and idioms produce lopsided trees; the
+leakage rate and the `reads:` line under each character show you when.  Read
+it as a front end for authoring, not as understanding.
 
 MIT licensed, like the specification.

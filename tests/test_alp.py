@@ -64,7 +64,8 @@ def test_uvarint():
 # -- inventory / composition ---------------------------------------------------
 
 def test_inventory_size():
-    assert len(PRIMITIVES) == 76
+    from alp.inventory import V1_PRIMITIVES, INVENTORY_VERSION
+    assert len(V1_PRIMITIVES) == 76 and INVENTORY_VERSION == 2 and len(PRIMITIVES) > 76
     assert pid("NEGATE").codepoint == ""
     assert pid("REF").code == 0x0800
 
@@ -138,8 +139,8 @@ def test_compositional_translator_builds_trees_and_binds_names():
     assert roles[ROLES["ARG1"]].head == pid("STATE")          # the outage
     assert not c.residue_bearing() and r.names == {}
     (r,) = tr.translate("Latency is spiking in the eu region.")
-    assert r.names == {"SCOPE": "eu"} and r.composition.residue is None     # English bound as data, not in the symbol
-    assert r.value == {"names": {"SCOPE": "eu"}}
+    assert r.names == {"LOC": "eu"} and r.composition.residue is None       # English bound as data, not in the symbol
+    assert r.value["bind"]["LOC"] == "eu"
     rs = tr.translate("Urgency is high and the deadline is tomorrow.")
     assert [x.composition.sid_hex(8) for x in rs] == ["037fac5d", "85168695"]
     (r,) = tr.translate("If the error rate rises, page the on-call engineer.")
@@ -262,6 +263,41 @@ def test_render_png_and_pdf(tmp_path):
     assert (tmp_path / "s.pdf").stat().st_size > 1000
 
 
+def test_character_script_composes(tmp_path):
+    from alp import script
+    from alp.composition import parse
+    st = script.CharStyle(cell=64)
+    c = parse('$RELATION.CAUSE.INFERRED :ARG0 ($EVENT.PAST.PUNCTUAL) :ARG1 ($STATE.NEGATE.BAD :SCOPE $PROCESS)')
+    assert len(script.word_chars(c)) == 3                       # one character per node, no stacking
+    img = script.render_word(c, st)
+    assert img.height == 64                                     # a word is one line of characters
+    txt = script.render_text([(c, {"bind": {"ARG1/SCOPE": "checkout", "MEASURE": {"n": 4200, "u": "ms"}}}), None,
+                              (Composition.build("STATE", "NECESSARY", "KNOWN", "ALL", "FUTURE", "GOOD"), True)], st, width=900)
+    assert txt.width == 900
+    chart = script.render_chart(script.CharStyle(cell=40))
+    chart.save(tmp_path / "chart.png")
+    for p in PRIMITIVES.values():
+        if p.cls != 0 and p.cls != 8:
+            script.render_char(Composition(pid("RELATION") if p.cls in (4, 9) else pid("ENTITY"), frozenset([p])), st)
+    lits = script.literals_of({"bind": {"LOC": "eu", "TIME": "2026-09-01T12:00", "MEASURE": {"n": 3, "u": "h"}}})
+    assert {k for _, k, _ in lits} == {"name", "time", "num", "unit"}
+
+
+def test_translator_binds_literals_and_uses_v2():
+    tr = Translator()
+    (r,) = tr.translate("Latency is 4200ms in the eu region.")
+    assert r.value["bind"]["LOC"] == "eu" and {"n": 4200, "u": "ms"} in r.value["bind"].values()
+    (r,) = tr.translate("We will meet Alice at 12:00 in Berlin.")
+    roles = dict(r.composition.roles)
+    assert ROLES["LOC"] in roles and ROLES["TIME"] in roles and "12:00" in str(r.value)
+    (r,) = tr.translate("The error rate is greater than 5%.")
+    assert pid("GREATER") in r.composition.modifiers and r.composition.head == pid("RELATION")
+    (r,) = tr.translate("I am afraid.")
+    assert pid("SELF") in r.composition.modifiers and pid("FEAR") in r.composition.modifiers
+    (r,) = tr.translate("Restart the server or roll back the release.")
+    assert pid("OR") in r.composition.modifiers
+
+
 def test_every_glyph_draws_and_emits_svg():
     from alp import glyphs
     from PIL import Image, ImageDraw
@@ -301,9 +337,13 @@ def test_cli_pipeline(tmp_path):
     assert r.returncode == 0
     r = _alp("key", "--png", str(tmp_path / "key.png"), "--svg", str(tmp_path / "key.svg"))
     assert r.returncode == 0 and (tmp_path / "key.svg").exists()
+    r = _alp("chart", "--png", str(tmp_path / "chart.png"))
+    assert r.returncode == 0 and (tmp_path / "chart.png").exists()
+    r = _alp("render", str(tmp_path / "x.alpt"), "--png", str(tmp_path / "conv.png"), "--style", "text")
+    assert r.returncode == 0
     r = _alp("compose", "$PROPERTY.HIGH.PUNCTUAL.REQUIRED")
     assert "037fac5d" in r.stdout
     r = _alp("render", str(tmp_path / "x.alpt"), "--pdf", str(tmp_path / "audit.pdf"))
     assert r.returncode == 0 and (tmp_path / "audit.pdf").exists()
     r = _alp("inventory")
-    assert "76 primitives" in r.stdout
+    assert "inventory version 2" in r.stdout and "76 in v1" in r.stdout
