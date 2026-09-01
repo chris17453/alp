@@ -178,6 +178,9 @@ class CharStyle:
     frame: bool | str = "faint"    # em-box: False, True (dim outline) or "faint"
     headline: bool = True          # a line along the top joining the characters of a word (Devanagari style)
     color: bool = True             # modifier classes in their colours; the head in ink
+    supersample: int = 3           # render at N× and downsample: soft, blended edges
+    blend: float = 0.86            # ink opacity per stroke; crossings darken like wet ink
+    pressure: bool = True          # brush pressure profiles and a slight bow on long strokes
     grid: bool = False             # faint grid (design aid)
 
 
@@ -198,31 +201,51 @@ THEMES = {
 # ---------------------------------------------------------------------------
 
 class _Pen:
-    """The stroke set.  Every mark in the script is one of these strokes, drawn
-    with weight modulation the way a brush stroke is:
+    """The stroke set, drawn like a brush.
 
-        heng  horizontal   thin at entry, swelling to a rounded exit
-        shu   vertical     full weight, square ends
-        pie   falling-left (or rising) diagonal: full at entry, tapering to a point
-        na    falling-right diagonal: light entry swelling to a broad cut tail
-        dian  dot          a short heavy teardrop
-        hu    arc          constant weight (drawn by the rasteriser)
-        wan   wave
+        heng  horizontal   light entry, thin belly, heavy rounded exit
+        shu   vertical     heavy pressed entry, steady body, slight lift at the end
+        pie   falling-left full pressure at entry tapering to a point
+        na    falling-right light entry swelling to a broad foot, then a quick lift
+        dian  dot          a pressed teardrop;  hu arc;  wan wave
 
-    Horizontals are ~0.78 of vertical weight.  Weight never drops below
-    1/22 em so small characters keep their strokes.
+    Horizontals are lighter than verticals; weight never drops below 1/17 em.
+    Strokes are composited at partial opacity so crossings darken the way wet
+    ink does, and long strokes bow slightly as a brush arm gives.
     """
 
     def __init__(self, draw: ImageDraw.ImageDraw, ox: float, oy: float, unit: float, ink, st: CharStyle) -> None:
         self.d, self.ox, self.oy, self.u, self.ink, self.st = draw, ox, oy, unit, ink, st
         self.w = max(1.5, st.weight * unit, st.cell / 17)
+        img = getattr(draw, "_image", None)
+        self.img = img if (img is not None and getattr(img, "mode", "") == "RGBA" and st.blend < 1.0) else None
 
     def P(self, x: float, y: float) -> tuple[float, float]:
         return self.ox + x * self.u, self.oy + y * self.u
 
-    # -- core ---------------------------------------------------------------
+    # -- compositing ---------------------------------------------------------
+    def _fill(self, pts: list[tuple[float, float]], ink) -> None:
+        if self.img is None or len(pts) < 3:
+            self.d.polygon(pts, fill=ink)
+            return
+        xs = [p[0] for p in pts]; ys = [p[1] for p in pts]
+        x0, y0 = int(math.floor(min(xs))) - 1, int(math.floor(min(ys))) - 1
+        x1, y1 = int(math.ceil(max(xs))) + 1, int(math.ceil(max(ys))) + 1
+        W, H = self.img.size
+        x0, y0, x1, y1 = max(0, x0), max(0, y0), min(W, x1), min(H, y1)
+        if x1 <= x0 or y1 <= y0:
+            return
+        layer = Image.new("RGBA", (x1 - x0, y1 - y0), (0, 0, 0, 0))
+        a = int(255 * self.st.blend)
+        col = (ink[0], ink[1], ink[2], a) if isinstance(ink, tuple) else ink
+        ImageDraw.Draw(layer).polygon([(x - x0, y - y0) for x, y in pts], fill=col)
+        self.img.alpha_composite(layer, (x0, y0))
+
+    def _disc(self, X: float, Y: float, r: float, ink) -> None:
+        n = 20
+        self._fill([(X + r * math.cos(2 * math.pi * i / n), Y + r * math.sin(2 * math.pi * i / n)) for i in range(n)], ink)
+
     def _band(self, pts: list[tuple[float, float]], half: list[float], ink) -> None:
-        """Fill a variable-width band along a polyline (screen coords)."""
         if len(pts) < 2:
             return
         left, right = [], []
@@ -237,7 +260,25 @@ class _Pen:
             nx, ny = -dy / L * half[i], dx / L * half[i]
             left.append((x + nx, y + ny))
             right.append((x - nx, y - ny))
-        self.d.polygon(left + right[::-1], fill=ink)
+        self._fill(left + right[::-1], ink)
+
+    # -- pressure profiles: half-width as a fraction of w along t in 0..1 ---------
+    @staticmethod
+    def _profile(kind: str, t: float) -> float:
+        if kind == "heng":
+            entry = 0.30 + 0.12 * math.sin(min(1.0, t / 0.18) * math.pi / 2)
+            belly = 0.36 + 0.06 * math.cos(math.pi * t)
+            exit_ = 0.20 * max(0.0, (t - 0.72) / 0.28) ** 1.5
+            return min(entry, belly) + exit_
+        if kind == "shu":
+            return 0.55 - 0.08 * t + 0.10 * max(0.0, 1 - t / 0.12)
+        if kind == "pie":
+            return 0.08 + 0.50 * (1 - t) ** 1.5
+        if kind == "na":
+            if t < 0.86:
+                return 0.22 + 0.42 * t ** 1.7
+            return 0.22 + 0.42 * 0.86 ** 1.7 - 0.35 * ((t - 0.86) / 0.14) ** 2
+        return 0.5
 
     def stroke(self, x0, y0, x1, y1, ink=None, w: float | None = None, kind: str | None = None,
                dash: str | None = None) -> None:
@@ -251,7 +292,7 @@ class _Pen:
         dx, dy = X1 - X0, Y1 - Y0
         L = math.hypot(dx, dy)
         if L < 0.5:
-            self.d.ellipse([X0 - w / 2, Y0 - w / 2, X0 + w / 2, Y0 + w / 2], fill=ink)
+            self._disc(X0, Y0, w / 2, ink)
             return
         if kind is None:
             ang = abs(math.degrees(math.atan2(dy, dx)))
@@ -260,58 +301,47 @@ class _Pen:
             elif 70 < ang < 110:
                 kind = "shu"
             elif (dx > 0) == (dy > 0):
-                kind = "na"       # falling to the right (screen y down)
+                kind = "na"
             else:
-                kind = "pie"      # falling to the left / rising to the right
-        n = 10
+                kind = "pie"
+        n = 16
         ts = [i / n for i in range(n + 1)]
-        pts = [(X0 + dx * t, Y0 + dy * t) for t in ts]
+        bow = 0.0
+        if self.st.pressure and L > 5 * w and kind in ("heng", "shu"):
+            bow = 0.018 * L * (1 if kind == "heng" else -1)
+        nx, ny = -dy / L, dx / L
+        pts = [(X0 + dx * t + nx * bow * math.sin(math.pi * t), Y0 + dy * t + ny * bow * math.sin(math.pi * t)) for t in ts]
+        half = [w * (self._profile(kind, t) if self.st.pressure else 0.5) for t in ts]
+        self._band(pts, half, ink)
         if kind == "heng":
-            half = [w * 0.30 * (0.7 + 0.6 * t) for t in ts]
-            self._band(pts, half, ink)
-            self.d.ellipse([X1 - w * 0.6, Y1 - w * 0.6, X1 + w * 0.6, Y1 + w * 0.6], fill=ink)   # exit pause
-            self.d.ellipse([X0 - w * 0.3, Y0 - w * 0.3, X0 + w * 0.3, Y0 + w * 0.3], fill=ink)
+            self._disc(X1, Y1, w * 0.60, ink); self._disc(X0, Y0, w * 0.34, ink)
         elif kind == "shu":
-            half = [w * 0.52 * (1.0 - 0.12 * t) for t in ts]
-            self._band(pts, half, ink)
-            self.d.rectangle([X0 - w * 0.6, Y0 - w * 0.35, X0 + w * 0.6, Y0 + w * 0.35], fill=ink)   # entry
+            self._disc(X0, Y0, w * 0.62, ink); self._disc(X1, Y1, w * 0.46, ink)
         elif kind == "pie":
-            half = [w * 0.55 * (1.0 - 0.85 * t) for t in ts]
-            self._band(pts, half, ink)
-            self.d.ellipse([X0 - w * 0.55, Y0 - w * 0.55, X0 + w * 0.55, Y0 + w * 0.55], fill=ink)
+            self._disc(X0, Y0, w * 0.56, ink)
         elif kind == "na":
-            half = [w * 0.5 * (0.35 + 1.05 * t) for t in ts]
-            self._band(pts, half, ink)
-        else:  # plain
-            self.d.line([(X0, Y0), (X1, Y1)], fill=ink, width=int(round(w)))
+            self._disc(X0, Y0, w * 0.26, ink)
+        else:
+            self._disc(X0, Y0, w * 0.5, ink); self._disc(X1, Y1, w * 0.5, ink)
 
     def curve(self, x0, y0, cx, cy, x1, y1, ink=None, w: float | None = None, kind: str = "pie") -> None:
-        """A bent stroke (quadratic Bézier) with the same modulation as a straight one."""
+        """A bent stroke (quadratic Bézier) with the same pressure profile as a straight one."""
         ink = ink or self.ink
         w = float(w or self.w)
-        n = 14
-        pts, ts = [], []
+        n = 18
+        pts, half = [], []
         for i in range(n + 1):
             t = i / n
             bx = (1 - t) ** 2 * x0 + 2 * (1 - t) * t * cx + t ** 2 * x1
             by = (1 - t) ** 2 * y0 + 2 * (1 - t) * t * cy + t ** 2 * y1
             pts.append(self.P(bx, by))
-            ts.append(t)
-        if kind == "pie":
-            half = [w * 0.5 * (1.0 - 0.6 * t) for t in ts]
-        elif kind == "na":
-            half = [w * 0.5 * (0.55 + 0.6 * t) for t in ts]
-        elif kind == "heng":
-            half = [w * 0.39 * (0.8 + 0.35 * t) for t in ts]
-        else:
-            half = [w * 0.5] * (n + 1)
+            half.append(w * (self._profile(kind, t) if self.st.pressure else 0.5))
         self._band(pts, half, ink)
-        X, Y = pts[0]
-        self.d.ellipse([X - half[0], Y - half[0], X + half[0], Y + half[0]], fill=ink)
-        X, Y = pts[-1]
-        self.d.ellipse([X - half[-1], Y - half[-1], X + half[-1], Y + half[-1]], fill=ink)
+        if kind in ("pie", "shu"):
+            self._disc(pts[0][0], pts[0][1], w * 0.55, ink)
+        if kind == "heng":
+            self._disc(pts[-1][0], pts[-1][1], w * 0.6, ink)
 
-    # legacy name used throughout: a stroke with automatic kind
     def seg(self, x0, y0, x1, y1, ink=None, w=None, dash=None, wedge=None) -> None:
         self.stroke(x0, y0, x1, y1, ink, w, None, dash)
 
@@ -328,42 +358,55 @@ class _Pen:
             a = i * step + (step - seg_on) / 2
             X0, Y0 = self.P(x0 + ux * a, y0 + uy * a)
             X1, Y1 = self.P(x0 + ux * (a + seg_on), y0 + uy * (a + seg_on))
-            self.d.line([(X0, Y0), (X1, Y1)], fill=ink, width=int(round(w)))
+            if dash == "dot":
+                self._disc((X0 + X1) / 2, (Y0 + Y1) / 2, w * 0.42, ink)
+            else:
+                self._band([(X0, Y0), (X1, Y1)], [w * 0.42, w * 0.42], ink)
 
     def dot(self, cx: float, cy: float, r: float = 0.45, ink=None) -> None:
-        """dian: a heavy teardrop leaning down-right."""
         ink = ink or self.ink
         X, Y = self.P(cx, cy)
         R = max(1.5, r * self.u)
-        self.d.ellipse([X - R, Y - R, X + R, Y + R], fill=ink)
-        self.d.polygon([(X - R * 0.7, Y - R * 0.7), (X + R * 0.9, Y + R * 0.2), (X + R * 0.2, Y + R * 0.9)], fill=ink)
+        self._disc(X, Y, R, ink)
+        self._fill([(X - R * 0.7, Y - R * 0.7), (X + R * 0.95, Y + R * 0.15), (X + R * 0.15, Y + R * 0.95)], ink)
 
     def arc(self, cx: float, cy: float, r: float, a0: float, a1: float, ink=None, w: float | None = None) -> None:
         ink = ink or self.ink
-        X, Y = self.P(cx, cy)
-        R = r * self.u
-        self.d.arc([X - R, Y - R, X + R, Y + R], a0, a1, fill=ink, width=int(round(w or self.w * 0.85)))
+        w = float(w or self.w * 0.85)
+        sweep = (a1 - a0) % 360 or 360
+        n = max(8, int(sweep / 8))
+        pts, half = [], []
+        for i in range(n + 1):
+            t = i / n
+            a = math.radians(a0 + sweep * t)
+            pts.append(self.P(cx + r * math.cos(a), cy + r * math.sin(a)))
+            half.append(w * (0.32 + 0.22 * math.sin(math.pi * t)) if self.st.pressure else w * 0.5)
+        self._band(pts, half, ink)
 
     def circle(self, cx: float, cy: float, r: float, ink=None, w: float | None = None, fill: bool = False) -> None:
         ink = ink or self.ink
         X, Y = self.P(cx, cy)
-        R = r * self.u
         if fill:
-            self.d.ellipse([X - R, Y - R, X + R, Y + R], fill=ink)
+            self._disc(X, Y, r * self.u, ink)
         else:
-            self.d.ellipse([X - R, Y - R, X + R, Y + R], outline=ink, width=int(round(w or self.w * 0.85)))
+            self.arc(cx, cy, r, -60, 300, ink, w or self.w * 0.9)
 
     def pie(self, cx: float, cy: float, r: float, a0: float, a1: float, ink=None) -> None:
         ink = ink or self.ink
         X, Y = self.P(cx, cy)
         R = r * self.u
-        self.d.pieslice([X - R, Y - R, X + R, Y + R], a0, a1, fill=ink)
+        n = max(6, int(((a1 - a0) % 360) / 6))
+        pts = [(X, Y)] + [(X + R * math.cos(math.radians(a0 + (a1 - a0) * i / n)), Y + R * math.sin(math.radians(a0 + (a1 - a0) * i / n))) for i in range(n + 1)]
+        self._fill(pts, ink)
 
     def wave(self, x0: float, y: float, x1: float, amp: float = 0.5, n: int = 3, ink=None, w: float | None = None) -> None:
         ink = ink or self.ink
-        steps = n * 8
-        pts = [self.P(x0 + (x1 - x0) * t, y + amp * math.sin(t * n * 2 * math.pi)) for t in (i / steps for i in range(steps + 1))]
-        self.d.line(pts, fill=ink, width=int(round(w or self.w * 0.8)), joint="curve")
+        w = float(w or self.w * 0.8)
+        steps = n * 10
+        tt = [i / steps for i in range(steps + 1)]
+        pts = [self.P(x0 + (x1 - x0) * t, y + amp * math.sin(t * n * 2 * math.pi)) for t in tt]
+        half = [w * (0.28 + 0.18 * abs(math.cos(t * n * 2 * math.pi))) for t in tt]
+        self._band(pts, half, ink)
 
     def rounded_box(self, x0: float, y0: float, x1: float, y1: float, r: float, ink=None, w: float | None = None,
                     dash: str | None = None, open_top: bool = False, corners_only: bool = False) -> None:
@@ -375,12 +418,12 @@ class _Pen:
         self.arc(x0 + r, y1 - r, r, 90, 180, ink, w)
         if corners_only:
             return
-        pw = int(round(w))
         def line(a, b, c, d):
             if dash:
                 self._dashed(a, b, c, d, ink, w, dash)
             else:
-                self.d.line([self.P(a, b), self.P(c, d)], fill=ink, width=pw)
+                A, B = self.P(a, b); Cc, D = self.P(c, d)
+                self._band([(A, B), (Cc, D)], [w * 0.42, w * 0.42], ink)
         if not open_top:
             line(x0 + r, y0, x1 - r, y0)
         line(x1, y0 + r, x1, y1 - r)
@@ -394,7 +437,7 @@ class _Pen:
     def poly(self, pts: Poly, ox: float, oy: float, scale: float = 1.0, ink=None, w=None,
              dash=None, fill: bool = False) -> None:
         if fill:
-            self.d.polygon([self.P(ox + x * scale, oy + y * scale) for x, y in pts], fill=ink or self.ink)
+            self._fill([self.P(ox + x * scale, oy + y * scale) for x, y in pts], ink or self.ink)
             return
         n = len(pts)
         for i in range(n):
@@ -1225,21 +1268,43 @@ def draw_word(draw: ImageDraw.ImageDraw, comp: Composition, x: float, y: float, 
     return x - st.gap * st.cell
 
 
+def _hi(st: CharStyle) -> tuple[CharStyle, int]:
+    """A style scaled up for supersampling, and the factor."""
+    S = max(1, int(st.supersample))
+    if S == 1:
+        return st, 1
+    from dataclasses import replace
+    return replace(st, cell=st.cell * S, supersample=1), S
+
+
+def _canvas(w: int, h: int, bg) -> tuple[Image.Image, ImageDraw.ImageDraw]:
+    img = Image.new("RGBA", (int(w), int(h)), tuple(bg) + (255,))
+    return img, ImageDraw.Draw(img)
+
+
+def _down(img: Image.Image, S: int) -> Image.Image:
+    out = img.convert("RGB")
+    if S > 1:
+        out = out.resize((max(1, img.width // S), max(1, img.height // S)), Image.LANCZOS)
+    return out
+
+
 def render_word(comp: Composition, st: CharStyle | None = None, value: Any = True) -> Image.Image:
     st = st or CharStyle()
+    hs, S = _hi(st)
     C = THEMES[st.theme]
-    w = word_width(comp, st, value)
-    img = Image.new("RGB", (w, st.cell), C["bg"])
-    draw_word(ImageDraw.Draw(img), comp, 0, 0, st, value)
-    return img
+    img, d = _canvas(word_width(comp, hs, value), hs.cell, C["bg"])
+    draw_word(d, comp, 0, 0, hs, value)
+    return _down(img, S)
 
 
 def render_char(comp: Composition, st: CharStyle | None = None) -> Image.Image:
     st = st or CharStyle()
+    hs, S = _hi(st)
     C = THEMES[st.theme]
-    img = Image.new("RGB", (st.cell, st.cell), C["bg"])
-    draw_char(ImageDraw.Draw(img), comp, 0, 0, st)
-    return img
+    img, d = _canvas(hs.cell, hs.cell, C["bg"])
+    draw_char(d, comp, 0, 0, hs)
+    return _down(img, S)
 
 
 Utterance = tuple  # (Composition, value) ; None = line break
@@ -1276,15 +1341,15 @@ def render_text(words: Sequence[Utterance | Composition | None], st: CharStyle |
             cur_w += add
     line_h = st.cell * (1 + line_gap)
     height = int(2 * margin + len(lines) * line_h)
-    img = Image.new("RGB", (width, height), C["bg"])
-    d = ImageDraw.Draw(img)
-    y = margin
+    hs, S = _hi(st)
+    img, d = _canvas(width * S, height * S, C["bg"])
+    y = margin * S
     for line in lines:
-        x = margin
+        x = margin * S
         for comp, value in line:
-            x = draw_word(d, comp, x, y, st, value) + st.word_gap * st.cell
-        y += line_h
-    return img
+            x = draw_word(d, comp, x, y, hs, value) + hs.word_gap * hs.cell
+        y += line_h * S
+    return _down(img, S)
 
 
 def render_chart(st: CharStyle | None = None) -> Image.Image:
