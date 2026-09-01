@@ -447,14 +447,29 @@ class _Pen:
 
     def poly(self, pts: Poly, ox: float, oy: float, scale: float = 1.0, ink=None, w=None,
              dash=None, fill: bool = False) -> None:
+        """A closed outline as one continuous band (joins closed with discs), or a fill.
+        Outlines are not brush-tapered edge by edge: a many-sided shape would dissolve."""
+        ink = ink or self.ink
+        w = float(w or self.w)
+        P = [self.P(ox + x * scale, oy + y * scale) for x, y in pts]
         if fill:
-            self._fill([self.P(ox + x * scale, oy + y * scale) for x, y in pts], ink or self.ink)
+            self._fill(P, ink)
             return
-        n = len(pts)
+        if dash:
+            n = len(pts)
+            for i in range(n):
+                x0, y0 = pts[i]; x1, y1 = pts[(i + 1) % n]
+                self._dashed(ox + x0 * scale, oy + y0 * scale, ox + x1 * scale, oy + y1 * scale, ink, w, dash)
+            return
+        n = len(P)
         for i in range(n):
-            x0, y0 = pts[i]
-            x1, y1 = pts[(i + 1) % n]
-            self.stroke(ox + x0 * scale, oy + y0 * scale, ox + x1 * scale, oy + y1 * scale, ink, w, None, dash)
+            (X0, Y0), (X1, Y1) = P[i], P[(i + 1) % n]
+            # gentle modulation along each edge: a little heavier toward its end
+            steps = 6
+            seg = [(X0 + (X1 - X0) * t / steps, Y0 + (Y1 - Y0) * t / steps) for t in range(steps + 1)]
+            half = [w * (0.44 + 0.08 * (t / steps)) for t in range(steps + 1)]
+            self._band(seg, half, ink)
+            self._disc(X1, Y1, w * 0.52, ink)
 
     def ops(self, ops: list[tuple], ox: float, oy: float, scale: float, ink=None, w=None,
             dash: str | None = None, fill_all: bool = False, detail: bool = True) -> None:
