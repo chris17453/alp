@@ -640,13 +640,3 @@ def doc_for_transcript(paragraphs: Sequence[Sequence], title: str | None = None,
     return doc
 
 
-def doc_for_chart(theme: str = "dark") -> Doc:
-    """The character chart: heads, then every modifier class as a transformation of one head, then literals."""
-    from . import script
-    return [Heading(f"ALP script — character chart, inventory v{inv.INVENTORY_VERSION}", 1),
-            Para("Row 1: the twelve heads.  Following rows: each modifier class applied to one head "
-                 "(modal · scalar · temporal · causal · epistemic · illocutionary · valence · relational · deictic · logical · affect).  "
-                 "Last row: numerals, names (cartouches), a reference seal, a unit.", dim=True),
-            Img(script.render_chart(script.CharStyle(cell=72, theme=theme, frame=True, **{k: CHAR_DEFAULTS[k] for k in ("blend", "feather", "grain")})))]
-
-
