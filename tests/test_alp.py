@@ -347,3 +347,43 @@ def test_cli_pipeline(tmp_path):
     assert r.returncode == 0 and (tmp_path / "audit.pdf").exists()
     r = _alp("inventory")
     assert "inventory version 2" in r.stdout and "76 in v1" in r.stdout
+
+
+# -- peer runtime / svg ------------------------------------------------------------------
+
+def test_two_peers_converge_with_buffering_and_repair():
+    from alp.peer import Peer, PeerConfig, wire
+    from alp.inventory import CLASS_AFFECT
+    sid = new_stream_id("t2")
+    a, b = Peer("a", Stream(sid, 16), config=PeerConfig(checkpoint_every=6)), Peer("b", Stream(sid, 16), config=PeerConfig(checkpoint_every=6))
+    pump = wire(a, b)
+    a.join(timestamp=1); b.join(timestamp=2); pump()
+    urg = Composition.build("PROPERTY", "HIGH", "PUNCTUAL", "REQUIRED")
+    a.assert_([(urg, 3)], timestamp=3); pump()                     # inline AMEND, no round trip
+    assert urg.sid in b.lexicon and not b.pending
+    secret = Composition.build("STATE", "NEGATE", "BAD")
+    a.know(secret)
+    a.assert_([(secret, True)], timestamp=4, inline=False); pump()  # B buffers, EXPANDs, A GROUNDs
+    assert any("buffered" in l for l in b.log) and any("applied buffered" in l for l in b.log)
+    assert b.stream.state.assertions.get(secret.sid[:16]) is True
+    v2 = Composition.build("STATE", "NEGATE", "BAD", "EXTREME", supersedes=secret.sid)
+    b.reground(secret, [b.stream.events[-1].eid_ref], "worse than that", proposal=v2, timestamp=5); pump()
+    a.checkpoint(timestamp=6); pump()                              # B verifies digest
+    b.replace_model([p for p in PRIMITIVES.values() if p.cls != CLASS_AFFECT], timestamp=7); pump()
+    fear = Composition.build("AGENT", "SELF", "FEAR")
+    a.assert_([(fear, True)], timestamp=8); pump()
+    assert fear.sid in b.declined
+    assert a.stream.state.digest() == b.stream.state.digest()
+    assert alpt.loads(alpt.dumps(b.stream)).stream.to_bytes() == b.stream.to_bytes()
+
+
+def test_svg_backend_matches_png_layout(tmp_path):
+    from alp import svg, script
+    c = Composition.build("RELATION", "CAUSE", "INFERRED", roles={"ARG0": "EVENT", "ARG1": Composition.build("STATE", "NEGATE", "BAD")})
+    st = script.CharStyle(cell=64)
+    text = svg.render_word_svg(c, st)
+    assert text.startswith("<svg") and "polygon" in text
+    img = script.render_word(c, st)
+    assert f'width="{img.width}"' in text
+    per = svg.character_svgs([c])
+    assert c.sid_hex() in per

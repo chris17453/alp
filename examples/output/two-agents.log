@@ -1,0 +1,12 @@
+events: alice=29 bob=29  lexicon: 8/8  converged: True  pending@bob: 0  declined@bob: 1
+
+[bob] buffered ASSERT 630fccd6: unknown ['037fac5d']
+[bob] applied buffered ASSERT 630fccd6
+[bob] model replaced: 110 primitives, 0 symbols declined
+
+bob's hydration of the state:
+  a process that is negated (not holding), at present, extended in time, bad [gloss: "The checkout service is down now."]  =  {'bind': {'.': 'checkout'}}
+  a quantity that is extended in time at (a place) [gloss: "Latency is 4200ms in the eu region."]  =  {'bind': {'.': {'n': 4200, 'u': 'ms'}, 'LOC': 'eu'}}
+  a relation that is inferred, in the past, causing whose agent is (an event that is instantaneous) whose patient is (a state that is negated (not holding), bad) [gloss: "We suspect the deploy caused the outage."]  =  True
+  a property that is high, instantaneous, required [gloss: "urgency"]  =  4
+  an agent that is I/we, afraid whose patient is (a relation that is having whose agent is (a thing) whose patient is (a signal that is negated (not holding), in the past)) [gloss: "I am afraid the database has no memory."]  =  True

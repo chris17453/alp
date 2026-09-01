@@ -351,6 +351,7 @@ class Chars:
     theme: str = "dark"
     frame: object = "faint"
     headline: bool = True
+    color: bool = True
 
 
 @dataclass
@@ -625,9 +626,21 @@ def save_pdf(doc: Doc, path: str, title: str = "ALP", theme: str = "light") -> s
     return path
 
 
+CHAR_DEFAULTS: dict = {"frame": "faint", "headline": True, "color": True}
+
+
+def set_char_defaults(**kw) -> None:
+    """CLI hook: --frame / --no-headline / --mono apply to every Chars item built afterwards."""
+    CHAR_DEFAULTS.update(kw)
+
+
+def _chars(words: list, cell: int, theme: str) -> "Chars":
+    return Chars(words, cell=cell, theme=theme, **CHAR_DEFAULTS)
+
+
 def _chars_image(item: "Chars", width: int) -> Image.Image:
     from . import script
-    return script.render_text(item.words, script.CharStyle(cell=item.cell, theme=item.theme, frame=item.frame, headline=item.headline), width=width, margin=0)
+    return script.render_text(item.words, script.CharStyle(cell=item.cell, theme=item.theme, frame=item.frame, headline=item.headline, color=item.color), width=width, margin=0)
 
 
 # ---------------------------------------------------------------------------
@@ -658,7 +671,7 @@ def doc_for_compositions(comps: Sequence[Composition], sources: Sequence[str] | 
                 words.append(None)
             last_src = src
             words.append((c, vals[i]))
-        doc.append(Chars(words, cell=cell, theme=theme))
+        doc.append(_chars(words, cell, theme))
         if transliteration or english:
             doc.append(Rule())
             for i, c in enumerate(comps):
@@ -677,7 +690,7 @@ def doc_for_compositions(comps: Sequence[Composition], sources: Sequence[str] | 
         if mode == "block":
             doc.append(Blocks([c], style or BlockStyle(theme=theme)))
         else:
-            doc.append(Chars([(c, vals[i])], cell=cell, theme=theme))
+            doc.append(_chars([(c, vals[i])], cell, theme))
         line = f"!{c.sid_hex(16)}…  {c.transliterate(8)}"
         if vals[i] not in (None, True):
             line += f"   ← {fmt_term(vals[i])}"
@@ -712,7 +725,7 @@ def doc_for_stream(stream, title: str | None = None, alpt_text: str | None = Non
         words.append(None)
     if words:
         doc.append(Rule())
-        doc.append(Chars(words, cell=cell, theme=theme))
+        doc.append(_chars(words, cell, theme))
     if not blocks:
         if alpt_text:
             doc.append(Rule()); doc.append(Heading("ALP/T", 2)); doc.append(Para(alpt_text, mono=True))
@@ -727,7 +740,7 @@ def doc_for_stream(stream, title: str | None = None, alpt_text: str | None = Non
             if mode == "block":
                 doc.append(Blocks(comps, style or BlockStyle(head=56, theme=theme)))
             else:
-                doc.append(Chars([(c, True) for c in comps], cell=cell, theme=theme))
+                doc.append(_chars([(c, True) for c in comps], cell, theme))
             if english:
                 for c in comps:
                     doc.append(Para("reads: " + c.reading(), dim=True))
@@ -758,7 +771,7 @@ def doc_for_transcript(paragraphs: Sequence[Sequence], title: str | None = None,
                 words.append((t.composition, t.value))
         if not words:
             continue
-        doc.append(Chars(words, cell=cell, theme=theme))
+        doc.append(_chars(words, cell, theme))
         if english:
             for src, trs in para:
                 doc.append(Para(src))

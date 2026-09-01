@@ -124,6 +124,17 @@ def _build_stream(translations, author: str, profile: int, stream_seed: str | No
 
 def _emit_images(doc, args, title: str) -> list[str]:
     written = []
+    if getattr(args, "svg", None):
+        from . import svg as svgmod
+        from .script import CharStyle
+        words: list = []
+        for item in doc:
+            if isinstance(item, render.Chars):
+                words += list(item.words) + [None]
+        if words:
+            st = CharStyle(cell=getattr(args, "cell", 56), theme=_theme(args), **render.CHAR_DEFAULTS)
+            Path(args.svg).write_text(svgmod.render_text_svg(words, st, width=1200))
+            written.append(args.svg)
     if getattr(args, "png", None):
         written += render.save_png(doc, args.png, theme=_theme(args))
     if getattr(args, "pdf", None):
@@ -132,6 +143,9 @@ def _emit_images(doc, args, title: str) -> list[str]:
 
 
 def _theme(args) -> str:
+    if hasattr(args, "frame"):
+        render.set_char_defaults(frame={"faint": "faint", "on": True, "off": False}[args.frame],
+                                 headline=not args.no_headline, color=not args.mono)
     return "dark" if args.theme == "auto" else args.theme
 
 
@@ -558,6 +572,7 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--no-translit", action="store_true", help="omit the ALP/T listing under the script")
         sp.add_argument("--frame", choices=["faint", "on", "off"], default="faint", help="em-box around each character")
         sp.add_argument("--no-headline", action="store_true", help="omit the word headline")
+        sp.add_argument("--mono", action="store_true", help="monochrome script (classes by shape only)")
 
     sp = sub.add_parser("translate", help="English -> compositions (no stream)")
     text_inputs(sp)
@@ -567,6 +582,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--json", action="store_true")
     sp.add_argument("-v", "--verbose", action="store_true")
     sp.add_argument("--lexicon", type=Path, nargs="?", const=DEFAULT_LEXICON, help="also record symbols in a lexicon file")
+    sp.add_argument("--svg", help="also write the script as SVG (vector)")
     image_outputs(sp)
     sp.set_defaults(func=cmd_translate)
 
@@ -583,6 +599,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--no-assert", action="store_true", help="only AMEND symbols, do not ASSERT them")
     sp.add_argument("--stats", action="store_true", help="print size and leakage statistics to stderr")
     sp.add_argument("--audit", action="store_true", help="image/PDF shows the whole stream, not just the symbols")
+    sp.add_argument("--svg", help="also write the script as SVG (vector)")
     image_outputs(sp)
     sp.set_defaults(func=cmd_encode)
 
@@ -622,12 +639,14 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--english-input", action="store_true", help="force: treat the file as English text")
     sp.add_argument("--no-blocks", action="store_true", help="stream audit without script blocks")
     sp.add_argument("--linear", help="also write the §6.4 linear glyph strip to this PNG")
+    sp.add_argument("--svg", help="also write the script as SVG (vector)")
     image_outputs(sp)
     sp.set_defaults(func=cmd_render)
 
     sp = sub.add_parser("compose", help="hash and describe a composition written in ALP/T syntax")
     sp.add_argument("composition", nargs="+", help="e.g. '$PROPERTY.HIGH.PUNCTUAL.REQUIRED'")
     sp.add_argument("--gloss")
+    sp.add_argument("--svg", help="also write the script as SVG (vector)")
     image_outputs(sp)
     sp.set_defaults(func=cmd_compose)
 
@@ -651,6 +670,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--profile", type=_profile, default=16)
     sp.add_argument("--stream", help="stream id seed")
     sp.add_argument("--clock", type=int)
+    sp.add_argument("--svg", help="also write the script as SVG (vector)")
     image_outputs(sp)
     sp.set_defaults(func=cmd_transcribe)
 

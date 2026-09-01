@@ -51,3 +51,8 @@ ls $OUT | wc -l
 # 6. a document transcript: script, script+English, ALP/T, ALP/B, text
 $A transcribe -f examples/document.txt -o $OUT --name document --clock 1788186000 --cell 56 --title "document — transcript" > $OUT/document-transcribe.log
 ls $OUT | wc -l
+
+# 7. two agents running the protocol
+uv run python examples/two_agents.py --alpt $OUT/two-agents.alpt --alpb $OUT/two-agents.alpb --png $OUT/two-agents.png --pdf $OUT/two-agents.pdf > $OUT/two-agents.log
+$A render examples/complex.txt --svg $OUT/complex-script.svg --png /dev/null 2>/dev/null || true
+ls $OUT | wc -l

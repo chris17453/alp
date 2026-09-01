@@ -46,8 +46,14 @@ How a character is put together follows hanzi practice
   two-character compound in a fixed split (head-shaping marks first,
   surroundings and roles second, the head shown as a seed), the way hanzi put
   complexity into more characters rather than denser ones.
+* **Colour is a channel.** The head is in ink; each modifier class has a
+  colour — modality violet, degree amber, time teal, cause red, certainty
+  green, speech magenta, value gold, deixis blue, feeling pink, literals clay —
+  so a mark's class is read before its shape (`--mono` for shape only).
 * **Word headline** joins the characters of one word; a faint em-box is on by
-  default in running text (`--frame off` to drop it).
+  default in running text (`--frame off` to drop it).  `--svg` writes the same
+  layout as vector; `alp.svg.character_svgs` gives one SVG per character for a
+  font pipeline.
 
 `examples/output/root-cause.png` — *"deploy 4471 is the suspected cause of the outage"*:
 
@@ -56,6 +62,26 @@ How a character is put together follows hanzi practice
 A whole text is a few lines of characters (`examples/output/complex-script.png`):
 
 ![complex thoughts](examples/output/complex-script.png)
+
+## Running the protocol
+
+`alp.peer.Peer` is a participant, not just a serializer.  It buffers events
+that name symbols it cannot resolve and emits EXPAND (§9.3), answers EXPAND
+with GROUND under a rate limit (§11.4), verifies GROUND payloads against the
+SIDs it asked for (§11.3), attests HELD on receipt and DEMONSTRATED after a
+round-trip challenge (§9.2), emits CHECKPOINTs and verifies received digests
+independently — E_DIVERGENCE / E_INVENTORY on mismatch (§7.3) — rate-limits
+AMEND and caps the lexicon (§11.2), and handles model substitution with
+DECLINED attestations (§9.4).  `examples/two_agents.py` runs two peers through
+all of it and checks that their state digests converge:
+
+```
+$ uv run python examples/two_agents.py
+events: alice=29 bob=29  lexicon: 8/8  converged: True  pending@bob: 0  declined@bob: 1
+[bob] buffered ASSERT 5d3f403e: unknown ['037fac5d']
+[bob] applied buffered ASSERT 5d3f403e
+[bob] model replaced: 110 primitives, 0 symbols declined
+```
 
 ## Transcribing a document
 
@@ -173,6 +199,8 @@ uv run alp forks notes.alpb                            # §12.6 synonymy-fork ca
 | `alp.alpt` | ALP/T writer + parser, byte-identical round trip, SID/EID mismatch detection |
 | `alp.lexicon` | Structural near-duplicate scan for synonymy forks (§12.6) |
 | `alp.render` | Documents: running script, per-utterance rows, expanded blocks; PNG (Pillow) and PDF (reportlab) |
+| `alp.svg` | SVG backend for the script (same layout as PNG); per-character SVGs for a font |
+| `alp.peer` | A running participant: buffering/EXPAND/GROUND, ATTEST and challenges, CHECKPOINT verification, rate limits, model substitution |
 | `alp.cli` | `translate transcribe encode decode export import verify render compose chart key forks lexicon stats inventory` |
 
 ```python
