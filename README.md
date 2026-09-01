@@ -31,11 +31,23 @@ it in its own way:
 | roles | ARG0 and ARG1 are seeds **inside the head's lobes**; other roles form a reduced row beneath, each seed with its role marker. A nested composition's own character follows (depth-first) — a composition is a short *word*, never a stack |
 | literals | **numbers** as wedge counts · **names** as cartouches with a visual hash of the name · **times**, **units**, **reference seals** — bound values written after the word they bind to |
 
-Zones are exclusive (crown row · head + enclosure + side radicals · ground
-row · role row), so strokes never cross except where crossing *is* the meaning
-(NEGATE).  Enclosures, crowns, ground marks, inner marks and connectors use
-arcs, circles and waves as well as straight strokes, so the classes are told
-apart by curvature too.
+How a character is put together follows hanzi practice
+([`docs/script-design-notes.md`](docs/script-design-notes.md) is the study):
+
+* **One stroke set, modulated.** Every mark is a heng / shu / pie / na / dian /
+  arc / wave with brush-like weight modulation (horizontals lighter than
+  verticals, falling strokes tapering or swelling); weight never drops below
+  1/22 em, so small characters keep their strokes.
+* **Structure, not slots.** Bands exist only for the components present; the
+  head takes the largest square that remains.  A bare head fills the box; a
+  loaded one gives up space proportionally.  Crown, ground line, radical and
+  connector are sized from the head and attached to its edge — nothing floats.
+* **Ink budget.** A composition with more than six components is written as a
+  two-character compound in a fixed split (head-shaping marks first,
+  surroundings and roles second, the head shown as a seed), the way hanzi put
+  complexity into more characters rather than denser ones.
+* **Word headline** joins the characters of one word; a faint em-box is on by
+  default in running text (`--frame off` to drop it).
 
 `examples/output/root-cause.png` — *"deploy 4471 is the suspected cause of the outage"*:
 
