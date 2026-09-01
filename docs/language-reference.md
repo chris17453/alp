@@ -146,7 +146,7 @@ verification, model substitution.
 alp translate TEXT | -f FILE        English -> trees            (--stats, --json, --png/--pdf/--svg)
 alp transcribe -f DOC -o DIR        document -> script + transcript + stream
 alp encode / decode / export / import / verify / stats
-alp render FILE|TEXT|'$COMP'        images   (--style text|each|block, --cell, --english, --mono, --frame, --svg)
+alp render FILE|TEXT|'$COMP'        images   (--style text|each, --cell, --english, --mono, --frame, --ink, --svg)
 alp compose '$COMP'                 SID, canonical bytes, reading, image
 alp chart / key                     the character chart / the glyph key
 alp forks STREAM                    synonymy-fork candidates (§12.6)
