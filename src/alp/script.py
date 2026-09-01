@@ -54,42 +54,69 @@ Seg = tuple[float, float, float, float]      # x0, y0, x1, y1 in grid units
 
 Poly = list[tuple[float, float]]
 
-HEADS: dict[str, tuple[list[Poly], list[Seg]]] = {
-    "ENTITY":   ([[(0.5, 0.5), (5.5, 0.5), (5.5, 5.5), (0.5, 5.5)]], []),
-    "PROCESS":  ([[(0.5, 1.5), (3.5, 1.5), (3.5, 0.3), (5.7, 3), (3.5, 5.7), (3.5, 4.5), (0.5, 4.5)]], []),
-    "PROPERTY": ([[(3, 0.3), (5.7, 3), (3, 5.7), (0.3, 3)]], []),
-    "RELATION": ([[(0.5, 0.5), (3, 3), (0.5, 5.5)], [(5.5, 0.5), (3, 3), (5.5, 5.5)]], []),
-    "QUANTITY": ([[(0.5, 3.6), (1.7, 3.6), (1.7, 5.7), (0.5, 5.7)], [(2.4, 2.0), (3.6, 2.0), (3.6, 5.7), (2.4, 5.7)],
-                  [(4.3, 0.3), (5.5, 0.3), (5.5, 5.7), (4.3, 5.7)]], []),
-    "AGENT":    ([[(0.5, 2.5), (3, 0.3), (5.5, 2.5), (5.5, 5.5), (0.5, 5.5)]], []),
-    "STATE":    ([[(2, 0.3), (4, 0.3), (5.7, 2), (5.7, 4), (4, 5.7), (2, 5.7), (0.3, 4), (0.3, 2)]], []),
-    "PLACE":    ([[(0.3, 0.5), (5.7, 0.5), (3, 5.7)]], [(3, 0.5, 3, 2.3)]),
-    "MOMENT":   ([[(2, 0.3), (4, 0.3), (5.7, 2), (5.7, 4), (4, 5.7), (2, 5.7), (0.3, 4), (0.3, 2)]], [(3, 3, 3, 1.3), (3, 3, 4.5, 3)]),
-    "SIGN":     ([[(1.2, 0.3), (5.7, 1.9), (1.2, 3.5)]], [(1.2, 0.3, 1.2, 5.7)]),
-    "EVENT":    ([[(3, 0.2), (4, 2), (5.8, 3), (4, 4), (3, 5.8), (2, 4), (0.2, 3), (2, 2)]], []),
-    "GROUP":    ([[(0.4, 0.4), (2.6, 0.4), (2.6, 2.6), (0.4, 2.6)], [(3.4, 0.4), (5.6, 0.4), (5.6, 2.6), (3.4, 2.6)],
-                  [(1.9, 3.4), (4.1, 3.4), (4.1, 5.6), (1.9, 5.6)]], []),
+# Head radicals as stroke programs on a 6×6 local grid.  Each op:
+#   ("poly", pts, fill)   closed outline (filled if fill)     ("seg", x0,y0,x1,y1)
+#   ("circle", cx,cy,r,fill)   ("arc", cx,cy,r,a0,a1)   ("pie", cx,cy,r,a0,a1)  filled sector
+# Ops after the "LOD" marker are inner detail, drawn only when the head is large enough.
+LOD = ("lod",)
+HEADS: dict[str, list[tuple]] = {
+    # a thing that persists: the square, doubled at the corners like a stamped block
+    "ENTITY":   [("poly", [(0.4, 0.4), (5.6, 0.4), (5.6, 5.6), (0.4, 5.6)], False),
+                 LOD, ("poly", [(1.5, 1.5), (4.5, 1.5), (4.5, 4.5), (1.5, 4.5)], False)],
+    # something that unfolds: a bold chevron band pointing forward
+    "PROCESS":  [("poly", [(0.4, 0.4), (2.4, 0.4), (5.7, 3.0), (2.4, 5.6), (0.4, 5.6), (3.4, 3.0)], False),
+                 LOD, ("seg", 0.4, 3.0, 2.0, 3.0)],
+    # an attribute borne: the lozenge with its centre
+    "PROPERTY": [("poly", [(3.0, 0.2), (5.8, 3.0), (3.0, 5.8), (0.2, 3.0)], False),
+                 LOD, ("circle", 3.0, 3.0, 0.55, True)],
+    # a tie between things: the hourglass with a knot
+    "RELATION": [("poly", [(0.4, 0.4), (5.6, 0.4), (0.4, 5.6), (5.6, 5.6)], False),
+                 LOD, ("circle", 3.0, 3.0, 0.6, True)],
+    # a magnitude: a staircase silhouette, rising
+    "QUANTITY": [("poly", [(0.3, 5.7), (0.3, 3.9), (2.1, 3.9), (2.1, 2.1), (3.9, 2.1), (3.9, 0.3), (5.7, 0.3), (5.7, 5.7)], False),
+                 LOD, ("seg", 2.1, 5.7, 2.1, 3.9), ("seg", 3.9, 5.7, 3.9, 2.1)],
+    # an actor: the house with a figure inside
+    "AGENT":    [("poly", [(0.4, 2.6), (3.0, 0.2), (5.6, 2.6), (5.6, 5.7), (0.4, 5.7)], False),
+                 LOD, ("circle", 3.0, 2.9, 0.55, True), ("seg", 3.0, 3.6, 3.0, 5.0)],
+    # a condition holding: the ring (octagon) with a level line
+    "STATE":    [("poly", [(1.9, 0.3), (4.1, 0.3), (5.7, 1.9), (5.7, 4.1), (4.1, 5.7), (1.9, 5.7), (0.3, 4.1), (0.3, 1.9)], False),
+                 LOD, ("seg", 1.5, 3.0, 4.5, 3.0)],
+    # a location: the pin — a round head over a point
+    "PLACE":    [("circle", 3.0, 2.3, 2.1, False), ("poly", [(1.55, 3.7), (4.45, 3.7), (3.0, 5.9)], True),
+                 LOD, ("circle", 3.0, 2.3, 0.6, True)],
+    # a time: the dial with a swept sector
+    "MOMENT":   [("circle", 3.0, 3.0, 2.8, False), ("pie", 3.0, 3.0, 2.0, 270, 360),
+                 LOD, ("seg", 3.0, 3.0, 3.0, 0.6)],
+    # information: the pennant on its staff
+    "SIGN":     [("seg", 0.9, 0.3, 0.9, 5.8), ("poly", [(0.9, 0.5), (5.7, 1.9), (0.9, 3.3)], True)],
+    # a bounded occurrence: the spark (four-point star)
+    "EVENT":    [("poly", [(3.0, 0.1), (3.9, 2.1), (5.9, 3.0), (3.9, 3.9), (3.0, 5.9), (2.1, 3.9), (0.1, 3.0), (2.1, 2.1)], False),
+                 LOD, ("circle", 3.0, 3.0, 0.5, True)],
+    # a collection: three members, one body
+    "GROUP":    [("circle", 1.6, 1.8, 1.25, True), ("circle", 4.4, 1.8, 1.25, True), ("circle", 3.0, 4.3, 1.25, True),
+                 LOD, ("seg", 1.6, 1.8, 4.4, 1.8), ("seg", 1.6, 1.8, 3.0, 4.3), ("seg", 4.4, 1.8, 3.0, 4.3)],
 }
+HEAD_POLYS: dict[str, list[Poly]] = {n: [op[1] for op in ops if op[0] == "poly"] for n, ops in HEADS.items()}
 # heads with interior room for argument seeds (left lobe / right lobe in local coords)
 LOBES: dict[str, tuple[tuple[float, float], tuple[float, float]]] = {
-    "ENTITY": ((1.2, 2.0), (3.8, 2.0)), "PROPERTY": ((1.6, 2.0), (3.4, 2.0)), "RELATION": ((0.9, 2.0), (4.1, 2.0)),
-    "AGENT": ((1.2, 2.8), (3.8, 2.8)), "STATE": ((1.2, 2.0), (3.8, 2.0)), "MOMENT": ((1.0, 3.4), (3.9, 3.4)),
-    "PLACE": ((1.4, 1.2), (3.6, 1.2)), "EVENT": ((1.7, 2.0), (3.3, 2.0)), "PROCESS": ((0.9, 2.0), (3.0, 2.0)),
+    "ENTITY": ((0.9, 2.0), (3.5, 2.0)), "PROPERTY": ((1.5, 2.0), (3.3, 2.0)), "RELATION": ((0.7, 2.0), (4.1, 2.0)),
+    "AGENT": ((0.8, 3.4), (4.0, 3.4)), "STATE": ((0.9, 2.0), (3.5, 2.0)), "MOMENT": ((0.6, 3.4), (3.6, 3.4)),
+    "EVENT": ((1.5, 2.0), (3.3, 2.0)), "PROCESS": ((0.7, 1.0), (0.7, 4.0)), "QUANTITY": ((0.7, 1.2), (4.0, 3.2)),
 }
 
-SEEDS: dict[str, list[Seg]] = {
-    "ENTITY":   [(0.2, 0.2, 1.8, 0.2), (1.8, 0.2, 1.8, 1.8), (1.8, 1.8, 0.2, 1.8), (0.2, 1.8, 0.2, 0.2)],
-    "PROCESS":  [(0.2, 0.2, 1.8, 1), (1.8, 1, 0.2, 1.8)],
-    "PROPERTY": [(1, 0.1, 1.9, 1), (1.9, 1, 1, 1.9), (1, 1.9, 0.1, 1), (0.1, 1, 1, 0.1)],
-    "RELATION": [(0.2, 0.2, 1.8, 1.8), (0.2, 1.8, 1.8, 0.2)],
-    "QUANTITY": [(0.5, 1.8, 0.5, 0.9), (1.5, 1.8, 1.5, 0.2)],
-    "AGENT":    [(0.2, 1, 1, 0.2), (1, 0.2, 1.8, 1), (0.2, 1, 0.2, 1.8), (1.8, 1, 1.8, 1.8)],
-    "STATE":    [(0.6, 0.2, 1.4, 0.2), (1.4, 0.2, 1.8, 0.6), (1.8, 0.6, 1.8, 1.4), (1.8, 1.4, 1.4, 1.8), (1.4, 1.8, 0.6, 1.8), (0.6, 1.8, 0.2, 1.4), (0.2, 1.4, 0.2, 0.6), (0.2, 0.6, 0.6, 0.2)],
-    "PLACE":    [(0.2, 0.2, 1.8, 0.2), (1.8, 0.2, 1, 1.8), (1, 1.8, 0.2, 0.2)],
-    "MOMENT":   [(0.2, 0.2, 1.8, 0.2), (1, 0.2, 1, 1.8)],
-    "SIGN":     [(0.4, 0.2, 0.4, 1.8), (0.4, 0.2, 1.8, 0.8), (1.8, 0.8, 0.4, 1.3)],
-    "EVENT":    [(1, 0.1, 1, 1.9), (0.1, 1, 1.9, 1), (0.35, 0.35, 1.65, 1.65), (0.35, 1.65, 1.65, 0.35)],
-    "GROUP":    [(0.3, 0.3, 0.7, 0.3), (1.3, 0.3, 1.7, 0.3), (0.8, 1.5, 1.2, 1.5), (0.3, 0.3, 0.3, 0.7), (1.7, 0.3, 1.7, 0.7)],
+SEEDS: dict[str, list[tuple]] = {   # 2×2 local; same op forms as HEADS
+    "ENTITY":   [("poly", [(0.15, 0.15), (1.85, 0.15), (1.85, 1.85), (0.15, 1.85)], False)],
+    "PROCESS":  [("poly", [(0.1, 0.1), (0.9, 0.1), (1.9, 1.0), (0.9, 1.9), (0.1, 1.9), (1.0, 1.0)], False)],
+    "PROPERTY": [("poly", [(1.0, 0.05), (1.95, 1.0), (1.0, 1.95), (0.05, 1.0)], False)],
+    "RELATION": [("poly", [(0.1, 0.1), (1.9, 0.1), (0.1, 1.9), (1.9, 1.9)], False)],
+    "QUANTITY": [("poly", [(0.1, 1.9), (0.1, 1.3), (0.7, 1.3), (0.7, 0.7), (1.3, 0.7), (1.3, 0.1), (1.9, 0.1), (1.9, 1.9)], False)],
+    "AGENT":    [("poly", [(0.1, 0.9), (1.0, 0.05), (1.9, 0.9), (1.9, 1.9), (0.1, 1.9)], False)],
+    "STATE":    [("circle", 1.0, 1.0, 0.9, False)],
+    "PLACE":    [("circle", 1.0, 0.75, 0.65, False), ("poly", [(0.55, 1.2), (1.45, 1.2), (1.0, 1.95)], True)],
+    "MOMENT":   [("circle", 1.0, 1.0, 0.9, False), ("pie", 1.0, 1.0, 0.65, 270, 360)],
+    "SIGN":     [("seg", 0.3, 0.05, 0.3, 1.95), ("poly", [(0.3, 0.15), (1.9, 0.65), (0.3, 1.15)], True)],
+    "EVENT":    [("poly", [(1.0, 0.0), (1.3, 0.7), (2.0, 1.0), (1.3, 1.3), (1.0, 2.0), (0.7, 1.3), (0.0, 1.0), (0.7, 0.7)], False)],
+    "GROUP":    [("circle", 0.55, 0.6, 0.42, True), ("circle", 1.45, 0.6, 0.42, True), ("circle", 1.0, 1.45, 0.42, True)],
 }
 
 # The small-form alphabet (3×3 local), used for inner marks, role markers, digits, hashes.
@@ -218,6 +245,33 @@ class _Pen:
         else:
             self.d.ellipse([X - R, Y - R, X + R, Y + R], outline=ink, width=w or self.w)
 
+    def pie(self, cx: float, cy: float, r: float, a0: float, a1: float, ink=None) -> None:
+        ink = ink or self.ink
+        X, Y = self.P(cx, cy)
+        R = r * self.u
+        self.d.pieslice([X - R, Y - R, X + R, Y + R], a0, a1, fill=ink)
+
+    def ops(self, ops: list[tuple], ox: float, oy: float, scale: float, ink=None, w: int | None = None,
+            dash: str | None = None, fill_all: bool = False, detail: bool = True) -> None:
+        """Run a head/seed stroke program."""
+        for op in ops:
+            k = op[0]
+            if k == "lod":
+                if not detail:
+                    return
+                continue
+            if k == "poly":
+                pts = [(ox + px * scale, oy + py * scale) for px, py in op[1]]
+                self.poly(pts, 0, 0, 1, ink, w, dash, fill=(op[2] or fill_all))
+            elif k == "seg":
+                self.seg(ox + op[1] * scale, oy + op[2] * scale, ox + op[3] * scale, oy + op[4] * scale, ink, w, dash, wedge=False)
+            elif k == "circle":
+                self.circle(ox + op[1] * scale, oy + op[2] * scale, op[3] * scale, ink, w, fill=(op[4] or fill_all))
+            elif k == "arc":
+                self.arc(ox + op[1] * scale, oy + op[2] * scale, op[3] * scale, op[4], op[5], ink, w)
+            elif k == "pie":
+                self.pie(ox + op[1] * scale, oy + op[2] * scale, op[3] * scale, op[4], op[5], ink)
+
     def wave(self, x0: float, y: float, x1: float, amp: float = 0.5, n: int = 3, ink=None, w: int | None = None) -> None:
         """A sine-ish wiggle from x0 to x1 at height y."""
         ink = ink or self.ink
@@ -277,7 +331,7 @@ def _seed_name(n: Node) -> str | None:
 def _draw_seed(pen: _Pen, node: Node, x: float, y: float, scale: float = 1.0, ink=None) -> None:
     name = _seed_name(node)
     if name is not None:
-        pen.segs(SEEDS[name], x, y, scale, ink)
+        pen.ops(SEEDS[name], x, y, scale, ink, max(1, int(pen.w * 0.8)), detail=False)
     elif isinstance(node, Pid):
         pen.segs(_form(node.member), x - 0.2 * scale, y - 0.2 * scale, 0.75 * scale, ink)
     else:  # SID reference: hook
@@ -386,33 +440,33 @@ def draw_char(draw: ImageDraw.ImageDraw, comp: Composition | None, x: float, y: 
         elif dash is None:
             dash = d2
     hw = max(1, int(round(pen.w * wmul)))
-    polys, extra = HEADS[hname]
+    ops = HEADS[hname]
     ep_names = {inv.name_of(e) for e in pl.epistemic}
+    hw = max(hw, max(1, int(round(pen.w * 0.9))))          # heads never go hairline
+    lobes_used = hname in LOBES and any(code in (1, 2) for code, _ in roles)
+    detail = side >= 5.0 and fillmode not in ("full", "half") and not lobes_used
 
     # -- head ---------------------------------------------------------------------------
     d = dash if dash in ("dash", "dot") else None
-    if fillmode == "full":
-        for pg in polys:
-            pen.poly(pg, hx0, hy0, k, ink, fill=True)
-    else:
-        for pg in polys:
-            pen.poly(pg, hx0, hy0, k, ink, hw, d)
-        pen.segs(extra, hx0, hy0, k, ink, hw, d)
-        if fillmode == "half":
-            for i in range(3):
-                yy = hy0 + side * (0.6 + i * 0.13)
-                pen.seg(hx0 + side * 0.2, yy, hx0 + side * 0.8, yy, ink, thin, wedge=False)
-        if fillmode == "double" or "CONTESTED" in ep_names:
-            # concentric inner outline (never an offset shadow: those collide)
-            for pg in polys:
-                cx_, cy_ = hx0 + side / 2, hy0 + side / 2
-                inner = [(cx_ + (hx0 + px * k - cx_) * 0.62, cy_ + (hy0 + py * k - cy_) * 0.62) for px, py in pg]
-                pen.poly(inner, 0, 0, 1, ink, thin)
-        if fillmode == "hollow":
-            pen.circle(CX, HEAD_CY, 0.35, ink, fill=True)
+    pen.ops(ops, hx0, hy0, k, ink, hw, d, fill_all=(fillmode == "full"), detail=detail)
+    if fillmode == "half":
+        for i in range(3):
+            yy = hy0 + side * (0.6 + i * 0.13)
+            pen.seg(hx0 + side * 0.2, yy, hx0 + side * 0.8, yy, ink, thin, wedge=False)
+    if fillmode == "double" or "CONTESTED" in ep_names:
+        # concentric inner outline (never an offset shadow: those collide)
+        cx_, cy_ = hx0 + side / 2, hy0 + side / 2
+        for pg in HEAD_POLYS[hname]:
+            inner = [(cx_ + (hx0 + px * k - cx_) * 0.6, cy_ + (hy0 + py * k - cy_) * 0.6) for px, py in pg]
+            pen.poly(inner, 0, 0, 1, ink, thin)
+        if not HEAD_POLYS[hname]:
+            pen.circle(cx_, cy_, side * 0.28, ink, thin)
+    if fillmode == "hollow":
+        pen.circle(CX, HEAD_CY, 0.35, ink, fill=True)
     if "OBSERVED" in ep_names:
-        pen.circle(CX, HEAD_CY, 0.55, ink, thin)
-        pen.circle(CX, HEAD_CY, 0.18, ink, fill=True)
+        pen.circle(CX, HEAD_CY, 0.8, C["bg"], fill=True)
+        pen.circle(CX, HEAD_CY, 0.6, ink, thin)
+        pen.circle(CX, HEAD_CY, 0.2, ink, fill=True)
 
     # -- negation ---------------------------------------------------------------------------
     if pl.negate and not continuation:
@@ -817,7 +871,7 @@ def draw_time(draw: ImageDraw.ImageDraw, iso: str, x: float, y: float, st: CharS
         n = draw_numeral(draw, int(p), px, y, st)
         if i == 0:
             pen = _Pen(draw, px, y, st.cell / GRID, C["ink"], st)
-            pen.segs(SEEDS["MOMENT"], 0.5, 0.5, 1.0, C["clay"])
+            pen.ops(SEEDS["MOMENT"], 0.5, 0.5, 1.2, C["clay"], detail=False)
         cells += n
     return cells
 
@@ -1022,7 +1076,10 @@ def render_chart(st: CharStyle | None = None) -> Image.Image:
     st = st or CharStyle(cell=80, frame=True)
     C = THEMES[st.theme]
     heads = [Composition(p) for p in inv.by_class(inv.CLASS_ONTOLOGICAL)]
-    rows: list[list[Composition]] = [heads]
+    rows: list[list[Composition]] = [heads,
+                                     [Composition(p, frozenset([inv.pid("LOW")])) for p in inv.by_class(inv.CLASS_ONTOLOGICAL)],
+                                     [Composition(p, frozenset([inv.pid("NONE")])) for p in inv.by_class(inv.CLASS_ONTOLOGICAL)],
+                                     [Composition(p, frozenset([inv.pid("ALL")])) for p in inv.by_class(inv.CLASS_ONTOLOGICAL)]]
     for cls in (inv.CLASS_MODAL, inv.CLASS_SCALAR, inv.CLASS_TEMPORAL, inv.CLASS_CAUSAL, inv.CLASS_EPISTEMIC,
                 inv.CLASS_ILLOCUTIONARY, inv.CLASS_VALENCE, inv.CLASS_RELATIONAL, inv.CLASS_DEICTIC,
                 inv.CLASS_LOGICAL, inv.CLASS_AFFECT):
