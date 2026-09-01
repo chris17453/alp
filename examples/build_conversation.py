@@ -15,8 +15,8 @@ from __future__ import annotations
 import argparse
 import sys
 
-from alp import Composition, Stream, alpt, render, new_stream_id
-from alp.events import AttestLevel, ErrorCode
+from alp import Composition, Stream, alpt, new_stream_id, render
+from alp.events import AttestLevel
 from alp.inventory import PRIMITIVES
 from alp.translate import SimpleTranslator
 

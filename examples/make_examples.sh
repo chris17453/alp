@@ -32,7 +32,7 @@ ls $OUT
 
 # animation: a word written stroke by stroke; the letter being written; a short title film
 $A animate "\$RELATION.CAUSE.INFERRED.CONTESTED :ARG0 (\$EVENT.PAST.PUNCTUAL) :ARG1 (\$STATE.NEGATE.BAD :SCOPE \$PROCESS)" \
-   --gif $OUT/10-one-word.gif --mp4 $OUT/10-one-word.mp4 --cell 160 --fps 20 --seconds 3.5
+   --gif $OUT/10-one-word.gif --mp4 $OUT/10-one-word.mp4 --cell 140 --fps 15 --seconds 3.5
 $A animate -f examples/document.txt --mp4 $OUT/11-document-written.mp4 --cell 64 --fps 18 --width 1280
 $A animate --title-sequence "We suspect the deploy caused the outage." --mp4 $OUT/12-title-sequence.mp4 --fps 20
 

@@ -127,11 +127,12 @@ def verb_for(c: Composition) -> tuple[str, set[str]]:
     head = inv.name_of(c.head)
     mods = _lexical_mods(c)
     names = _names(c)
-    if "PAST" in names:                                # "roll(back)": PAST can be part of the lexeme
+    w0, cov0 = _best(_VERBS, head, mods, GENERIC_VERB[head])
+    if "PAST" in names:                                # "roll(back)": PAST can be part of the lexeme — only if it explains more
         w, cov = _best(_VERBS, head, mods | {"PAST"}, GENERIC_VERB[head])
-        if "PAST" in cov:
+        if "PAST" in cov and len(cov) > len(cov0) + 1:
             return w, cov
-    return _best(_VERBS, head, mods, GENERIC_VERB[head])
+    return w0, cov0
 
 
 # ---------------------------------------------------------------------------

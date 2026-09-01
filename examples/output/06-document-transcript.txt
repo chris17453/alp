@@ -5,9 +5,9 @@ Hi, my name is Sally.
     bound: ARG1="sally"
     reads: Hello, my name is Sally.
 I work on the payments team in Berlin.
-    028d18a9  $PROCESS.DURATIVE :ARG2 ($ENTITY) :SCOPE ($AGENT.SELF) :LOC ($GROUP)
-    bound: ARG2="berlin"  LOC="payments"
-    reads: The service to Berlin of me in Payments.
+    31589d66  $PROCESS.DURATIVE.GOOD :ARG0 ($AGENT.SELF) :LOC ($GROUP :LOC ($ENTITY))
+    bound: LOC/LOC="berlin"  LOC="payments"
+    reads: I work on Payments in Berlin.
 
 The server broke yesterday at 3:00.
     e20f7e08  $EVENT.NEGATE.PAST.BAD :ARG0 ($ENTITY) :TIME ($MOMENT)
@@ -38,4 +38,4 @@ Thanks!
     reads: Thank you.
 
 10 clauses, 6 fully composed from primitives, 5 names bound as data, 0 residue tokens, English leakage 8.2%
-english 347 B -> ALP/B 4779 B (SID-128, 22 events)
+english 347 B -> ALP/B 4797 B (SID-128, 22 events)

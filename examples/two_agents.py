@@ -18,8 +18,8 @@ import argparse
 import sys
 
 from alp import Composition, Stream, Translator, alpt, render
-from alp.events import AttestLevel, new_stream_id
-from alp.inventory import PRIMITIVES, CLASS_AFFECT
+from alp.events import new_stream_id
+from alp.inventory import CLASS_AFFECT, PRIMITIVES
 from alp.peer import Peer, PeerConfig, wire
 
 T0 = 1788190000
