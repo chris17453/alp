@@ -34,12 +34,12 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
 
     sid = new_stream_id("two-agents")
-    cfg = PeerConfig(checkpoint_every=8)
+    t = [T0]
+    cfg = PeerConfig(checkpoint_every=8, clock=lambda: t[0])       # deterministic: the demo's own clock
     a = Peer("alice", Stream(sid, 16), config=cfg)
     b = Peer("bob", Stream(sid, 16), config=cfg)
     pump = wire(a, b)
     tr = Translator()
-    t = [T0]
 
     def tick() -> int:
         t[0] += 2

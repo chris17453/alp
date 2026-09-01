@@ -96,7 +96,7 @@ class Peer:
         self.outbox.append(ev)
         self._since_checkpoint += 1
         if ev.type != EventType.CHECKPOINT and self._since_checkpoint >= self.cfg.checkpoint_every:
-            self.checkpoint()
+            self.checkpoint(timestamp=int(self.cfg.clock()))
         return ev
 
     def _rate_check(self, author: bytes, kind: str, limit: RateLimit) -> bool:
