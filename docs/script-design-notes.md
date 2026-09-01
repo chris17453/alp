@@ -174,6 +174,14 @@ Also done: curved strokes in the heads (PROCESS, AGENT, SIGN, EVENT carry
 bent 撇/捺 strokes; PLACE, MOMENT, GROUP are circular); numerals and literal
 ties redrawn on the stroke set; the headline demoted to a light word-join.
 
+Rendering: strokes are drawn as a brush — per-kind pressure profiles
+(heng light-in / heavy-out, shu pressed entry, pie taper, na swell), ink
+composited at partial opacity so crossings darken, a slight bow on long
+strokes, 3× supersampling for soft edges.  Colour by class.  Seeds (the
+reduced heads in lobes and the role row) are solid silhouettes with a minimum
+size, because an outline stops being recognisable below ~12 px and a
+silhouette does not.
+
 Settled by decision: the radical-position variant (7) is not implemented —
 the ink budget's compound split covers the heavy-character case with a fixed,
 learnable order, and keeping the head large keeps category legible at line

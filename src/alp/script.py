@@ -111,20 +111,23 @@ LOBES: dict[str, tuple[tuple[float, float], tuple[float, float]]] = {
     "EVENT": ((1.6, 2.1), (2.8, 2.1)),
 }
 
-SEEDS: dict[str, list[tuple]] = {   # 2×2 local; same op forms as HEADS
-    "ENTITY":   [("poly", [(0.15, 0.15), (1.85, 0.15), (1.85, 1.85), (0.15, 1.85)], False)],
-    "PROCESS":  [("poly", [(0.1, 0.1), (0.9, 0.1), (1.9, 1.0), (0.9, 1.9), (0.1, 1.9), (1.0, 1.0)], False)],
-    "PROPERTY": [("poly", [(1.0, 0.05), (1.95, 1.0), (1.0, 1.95), (0.05, 1.0)], False)],
-    "RELATION": [("poly", [(0.1, 0.1), (1.9, 0.1), (0.1, 1.9), (1.9, 1.9)], False)],
-    "QUANTITY": [("poly", [(0.1, 1.9), (0.1, 1.3), (0.7, 1.3), (0.7, 0.7), (1.3, 0.7), (1.3, 0.1), (1.9, 0.1), (1.9, 1.9)], False)],
-    "AGENT":    [("poly", [(0.1, 0.9), (1.0, 0.05), (1.9, 0.9), (1.9, 1.9), (0.1, 1.9)], False)],
-    "STATE":    [("circle", 1.0, 1.0, 0.9, False)],
-    "PLACE":    [("circle", 1.0, 0.75, 0.65, False), ("poly", [(0.55, 1.2), (1.45, 1.2), (1.0, 1.95)], True)],
-    "MOMENT":   [("circle", 1.0, 1.0, 0.9, False), ("pie", 1.0, 1.0, 0.65, 270, 360)],
-    "SIGN":     [("seg", 0.3, 0.05, 0.3, 1.95), ("poly", [(0.3, 0.15), (1.9, 0.65), (0.3, 1.15)], True)],
-    "EVENT":    [("poly", [(1.0, 0.0), (1.3, 0.7), (2.0, 1.0), (1.3, 1.3), (1.0, 2.0), (0.7, 1.3), (0.0, 1.0), (0.7, 0.7)], False)],
-    "GROUP":    [("circle", 0.55, 0.6, 0.42, True), ("circle", 1.45, 0.6, 0.42, True), ("circle", 1.0, 1.45, 0.42, True)],
-}
+def _seed_ops() -> dict[str, list[tuple]]:
+    """Seeds are the heads as solid silhouettes on a 2×2 grid — the only form
+    that stays recognisable at 8-12 px.  Circular heads keep their discs."""
+    out: dict[str, list[tuple]] = {}
+    for name, polys in HEAD_POLYS.items():
+        out[name] = [("poly", [((x - 0.3) / 5.4 * 2, (y - 0.3) / 5.4 * 2) for x, y in pg], True) for pg in polys]
+    out["PLACE"] = [("circle", 1.0, 0.72, 0.68, True), ("poly", [(0.4, 1.15), (1.6, 1.15), (1.0, 2.0)], True)]
+    out["MOMENT"] = [("circle", 1.0, 1.0, 0.95, True)]
+    out["GROUP"] = [("circle", 0.55, 0.6, 0.5, True), ("circle", 1.45, 0.6, 0.5, True), ("circle", 1.0, 1.42, 0.5, True)]
+    out["SIGN"] = [("poly", [(0.25, 0.0), (0.55, 0.0), (0.55, 2.0), (0.25, 2.0)], True), ("poly", [(0.5, 0.1), (1.95, 0.65), (0.5, 1.2)], True)]
+    out["QUANTITY"] = [("poly", [(0.1, 2.0), (0.1, 1.3), (0.73, 1.3), (0.73, 0.65), (1.37, 0.65), (1.37, 0.0), (2.0, 0.0), (2.0, 2.0)], True)]
+    return out
+
+
+SEEDS: dict[str, list[tuple]] = _seed_ops()
+# a MOMENT seed needs its sector cut to differ from STATE: drawn as a bg-coloured pie in _draw_seed
+SEED_MIN = 1.35          # minimum seed scale (units per 2×2 grid step): 2.7 units across
 
 # The small-form alphabet (3×3 local), used for inner marks, role markers, digits, hashes.
 FORMS: list[list[Seg]] = [
@@ -482,8 +485,15 @@ def _seed_name(n: Node) -> str | None:
 
 def _draw_seed(pen: _Pen, node: Node, x: float, y: float, scale: float = 1.0, ink=None) -> None:
     name = _seed_name(node)
+    scale = max(scale, SEED_MIN)
     if name is not None:
-        pen.ops(SEEDS[name], x, y, scale, ink, max(1, int(pen.w * 0.8)), detail=False)
+        pen.ops(SEEDS[name], x, y, scale, ink, None, detail=False)
+        if name == "MOMENT":
+            pen.pie(x + 1.0 * scale, y + 1.0 * scale, 0.62 * scale, 270, 360, THEMES[pen.st.theme]["bg"])
+        if name == "STATE":
+            pen.circle(x + 1.0 * scale, y + 1.0 * scale, 0.36 * scale, THEMES[pen.st.theme]["bg"], fill=True)
+        if name == "ENTITY":
+            pen.poly([(0.55, 0.55), (1.45, 0.55), (1.45, 1.45), (0.55, 1.45)], x, y, scale, THEMES[pen.st.theme]["bg"], fill=True)
     elif isinstance(node, Pid):
         pen.segs(_form(node.member), x - 0.2 * scale, y - 0.2 * scale, 0.75 * scale, ink)
     else:  # SID reference: hook
@@ -579,8 +589,8 @@ def _layout(pl: "_Plan", has_below_roles: bool, scalar_scale: float) -> _Layout:
         L.crown = (0, 0, L.y0 + 1.6)
         L.y0 += 2.6
     if has_below_roles:
-        L.rolerow = (L.y1 - 2.0, 0, 0)
-        L.y1 -= 2.8
+        L.rolerow = (L.y1 - 2.9, 0, 0)
+        L.y1 -= 3.6
     if pl.temporal:
         L.ground = (0, 0, L.y1 - 0.9)
         L.y1 -= 2.3
@@ -832,8 +842,8 @@ def draw_char(draw: ImageDraw.ImageDraw, comp: Composition | None, x: float, y: 
         for code, node in inside:
             lx, ly = lob[0 if code == 1 else 1]
             sx, sy = hx0 + lx * k, hy0 + ly * k
-            sc = max(0.7, k * 0.85)
-            _draw_seed(pen, node, sx, sy, sc, ink)
+            sc = max(SEED_MIN, k * 0.9)
+            _draw_seed(pen, node, sx - (sc - k * 0.85), sy - (sc - k * 0.85) * 0.5, sc, ink)
             if isinstance(node, Composition):
                 pen.stroke(sx, sy + 2.35 * sc, sx + 2 * sc, sy + 2.35 * sc, ink, thin, "heng")
     elif inside:
@@ -841,17 +851,18 @@ def draw_char(draw: ImageDraw.ImageDraw, comp: Composition | None, x: float, y: 
     if L.rolerow and below:
         ry, rx0, rx1 = L.rolerow
         n = len(below)
-        span = max(rx1 - rx0, 2.4 * n)
+        span = max(rx1 - rx0, 3.4 * n)
         x0r = cx - span / 2
         slot = span / n
+        ssc = SEED_MIN
         for i, (code, node) in enumerate(below):
-            sx = x0r + i * slot + slot / 2 - 0.9
-            _draw_seed(pen, node, sx, ry, 0.9, ink)
+            sx = x0r + i * slot + slot / 2 - ssc
+            _draw_seed(pen, node, sx, ry, ssc, ink)
             if isinstance(node, Composition):
-                pen.stroke(sx, ry - 0.45, sx + 1.8, ry - 0.45, ink, thin, "heng")
+                pen.stroke(sx, ry - 0.5, sx + 2 * ssc, ry - 0.5, ink, thin, "heng")
             col, underline = ROLE_COLS.get(code, (3, False))
             if underline:
-                pen.stroke(sx, ry + 2.15, sx + 1.8, ry + 2.15, ink, thin, "heng")
+                pen.stroke(sx, ry + 2 * ssc + 0.35, sx + 2 * ssc, ry + 2 * ssc + 0.35, ink, thin, "heng")
 
     if part == 0 and any(isinstance(m, Composition) for m in comp.modifiers):
         pen.stroke(ex0, ey1 + 0.3, ex1, ey1 + 0.3, C["dim"], thin, "heng")
@@ -1358,6 +1369,8 @@ def render_chart(st: CharStyle | None = None) -> Image.Image:
     C = THEMES[st.theme]
     heads = [Composition(p) for p in inv.by_class(inv.CLASS_ONTOLOGICAL)]
     rows: list[list[Composition]] = [heads,
+                                     [Composition(inv.pid("ENTITY"), frozenset(), ((inv.ROLES["SCOPE"], p),)) for p in inv.by_class(inv.CLASS_ONTOLOGICAL)],
+                                     [Composition(inv.pid("ENTITY"), frozenset([inv.pid("LOW")]), ((inv.ROLES["SCOPE"], p), (inv.ROLES["TIME"], p))) for p in inv.by_class(inv.CLASS_ONTOLOGICAL)],
                                      [Composition(p, frozenset([inv.pid("LOW")])) for p in inv.by_class(inv.CLASS_ONTOLOGICAL)],
                                      [Composition(p, frozenset([inv.pid("NONE")])) for p in inv.by_class(inv.CLASS_ONTOLOGICAL)],
                                      [Composition(p, frozenset([inv.pid("ALL")])) for p in inv.by_class(inv.CLASS_ONTOLOGICAL)]]
