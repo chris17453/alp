@@ -13,12 +13,12 @@ part of the symbol).
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
 
+from . import inventory as inv
 from .alpb import Pid
 from .composition import Composition, Node
-from . import inventory as inv
 
 
 def _flat_mods(c: Composition) -> set:

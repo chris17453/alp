@@ -1,8 +1,8 @@
 # ALP — an experiment in a written language for machines
 
-![one word](examples/output/03-one-word.png)
+![one word being written](examples/output/10-one-word.gif)
 
-*Three characters. Read left to right: a relation — dashed because it's inferred,
+*Three characters, written stroke by stroke. Read left to right: a relation — dashed because it's inferred,
 doubled because it's disputed, red arrow for "causes" — between a past
 instantaneous event and a negated, bad state. In English: "the deploy is the
 suspected, disputed cause of the outage."*
@@ -72,6 +72,25 @@ translator's trees and the realizer's readings underneath:
 
 ![document transcript](examples/output/06-document-transcript.png)
 
+## Options worth knowing
+
+The same text can be shown several ways; all of these are flags on `render`,
+`transcribe`, `animate` and friends.
+
+| flag | effect |
+|---|---|
+| `--captions` | the realizer's English set under each word, so a page reads bilingually — [`04b-complex-captions.png`](examples/output/04b-complex-captions.png) |
+| `--english --style each` | one utterance per row with source sentence, tree, bound values and reading |
+| `--palette default\|neon\|ember\|ocean\|mono` or a JSON file | the class colours are language configuration, not a hard-coded theme — [`15-palettes.png`](examples/output/15-palettes.png); `ALP_PALETTE` sets a default |
+| `--ink crisp\|medium\|soft` | how much brush blending and grain |
+| `--theme dark\|light`, `--mono`, `--frame off`, `--cell N` | background, colour on/off, em-box, size |
+| `animate --mode write` | characters written stroke by stroke ([`10-one-word.gif`](examples/output/10-one-word.gif)) |
+| `animate --mode pulse` | the finished word alive: colours cycle through the palette and the ink breathes — loops ([`13-pulse.gif`](examples/output/13-pulse.gif)) |
+| `animate --mode trace` | a highlight travelling along the strokes in writing order — loops ([`14-trace.gif`](examples/output/14-trace.gif)) |
+| `animate --title-sequence` | a short film: title, the twelve heads, the sentence ([`12-title-sequence.mp4`](examples/output/12-title-sequence.mp4)) |
+
+![captions](examples/output/04b-complex-captions.png)
+
 ## What works today
 
 - A canonical binary encoding and a lossless text form that round-trips
@@ -83,7 +102,11 @@ translator's trees and the realizer's readings underneath:
   the names and numbers. English out: a realizer that reads trees back into
   sentences. Both are scaffolding, not understanding — the language and the
   script are the point.
-- The script, rendered to PNG, PDF and SVG, with a chart and a key.
+- The script, rendered to PNG, PDF and SVG, with a chart and a key — and
+  **animated**: characters are written stroke by stroke to GIF or MP4
+  (`alp animate`), including a short title sequence
+  ([`12-title-sequence.mp4`](examples/output/12-title-sequence.mp4)) and a
+  whole letter being written ([`11-document-written.mp4`](examples/output/11-document-written.mp4)).
 
 ```sh
 uv sync
@@ -91,6 +114,7 @@ uv run alp translate "we suspect the deploy caused the outage"
 uv run alp render -f yourtext.txt --png out.png
 uv run alp transcribe -f letter.txt -o out/
 uv run alp chart --png chart.png
+uv run alp animate "the server broke yesterday" --gif out.gif --mp4 out.mp4
 uv run python examples/two_agents.py
 ```
 
@@ -124,7 +148,7 @@ hieroglyphs and what was deliberately left out.
 ## Layout
 
 ```
-src/alp/     alpb (codec) · inventory · composition · script (the characters) · translate · realize
+src/alp/     alpb (codec) · inventory · composition · script (the characters) · anim · translate · realize
              events (streams) · peer (a participant) · alpt (text form) · svg · render · cli
 docs/        RFC-ALP-001, language reference, script design notes
 examples/    example texts, the two-agent demo, generated output

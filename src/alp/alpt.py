@@ -45,15 +45,21 @@ from __future__ import annotations
 import calendar
 import re
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Any, Iterable
+from typing import Any
 
-from . import alpb
-from .alpb import Pid, Ref, REF_SID, REF_EID, REF_SID_FULL, REF_EID_FULL, HASH_LEN
 from . import inventory as inv
-from .composition import Composition, SIDMismatch, quote, unquote, verify as verify_comp
+from .alpb import HASH_LEN, REF_EID, REF_EID_FULL, REF_SID, REF_SID_FULL, Pid, Ref
+from .composition import Composition, SIDMismatch, quote, unquote
+from .composition import verify as verify_comp
 from .events import (
-    Event, EventType, Stream, PROFILE_NAMES, PROFILE_BY_NAME, PROFILE_CODES, StreamError,
+    PROFILE_BY_NAME,
+    PROFILE_CODES,
+    PROFILE_NAMES,
+    Event,
+    EventType,
+    Stream,
 )
 from .inventory import INVENTORY_VERSION, PROTOCOL_VERSION
 

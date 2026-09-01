@@ -25,15 +25,17 @@ from typing import Any
 
 from . import __version__, alpt, render
 from . import inventory as inv
-from .alpb import Pid, Ref
 from .composition import Composition
 from .events import (
-    AttestLevel, EventType, Stream, StreamError, agent_sid, new_stream_id,
-    PROFILE_BY_NAME, PROFILE_NAMES,
+    PROFILE_BY_NAME,
+    EventType,
+    Stream,
+    StreamError,
+    new_stream_id,
 )
 from .lexicon import find_forks
-from .translate import Translator, SimpleTranslator, split_sentences, stats
 from .realize import realize
+from .translate import SimpleTranslator, Translator, split_sentences, stats
 
 DEFAULT_LEXICON = Path(os.environ.get("ALP_LEXICON", Path.home() / ".local" / "share" / "alp" / "lexicon.alpt"))
 
@@ -147,7 +149,9 @@ def _theme(args) -> str:
     if hasattr(args, "frame"):
         from .script import INK_PRESETS
         render.set_char_defaults(frame={"faint": "faint", "on": True, "off": False}[args.frame],
-                                 headline=not args.no_headline, color=not args.mono, **INK_PRESETS[getattr(args, "ink", "medium")])
+                                 headline=not args.no_headline, color=not args.mono, **INK_PRESETS[getattr(args, "ink", "medium")],
+                                 palette=(getattr(args, "palette", None) or os.environ.get("ALP_PALETTE", "default")),
+                                 captions=getattr(args, "captions", False))
     return "dark" if args.theme == "auto" else args.theme
 
 
@@ -456,7 +460,7 @@ def cmd_transcribe(args) -> int:
             for t in trs:
                 lines.append(f"    {t.composition.sid_hex(8)}  {t.composition.transliterate(8)}")
                 if t.value is not True:
-                    lines.append(f"    bound: " + "  ".join(f"{k}={alpt.fmt_term(v)}" for k, v in t.value["bind"].items()))
+                    lines.append("    bound: " + "  ".join(f"{k}={alpt.fmt_term(v)}" for k, v in t.value["bind"].items()))
                 lines.append(f"    reads: {realize(t.composition, t.value)}")
                 if t.unconsumed:
                     lines.append(f"    residue: {' '.join(t.unconsumed)}")
@@ -467,6 +471,52 @@ def cmd_transcribe(args) -> int:
     (out / f"{stem}-transcript.txt").write_text("\n".join(lines), encoding="utf-8")
     print(f"{stem}: {len(all_tr)} utterances in {len(paragraphs)} paragraphs -> {out}/")
     print(st.summary())
+    return 0
+
+
+def cmd_animate(args) -> int:
+    """Write a word, a text, or the title sequence as GIF/MP4."""
+    from . import anim
+    from .script import INK_PRESETS, CharStyle
+    theme = _theme(args)
+    ink = INK_PRESETS[args.ink]
+    outs = [p for p in (args.gif, args.mp4) if p]
+    if not outs:
+        outs = ["alp.gif"]
+    if args.title_sequence:
+        text = _read_text(args) if (args.text or args.file) else "We suspect the deploy caused the outage."
+        tr = _translator(args)
+        words = [(t.composition, t.value) for t in tr.translate_text(text)]
+        frames = anim.title_sequence(words, title=args.title or "ALP", subtitle=args.subtitle,
+                                     size=(args.width, args.height), fps=args.fps, theme=theme, caption=text)
+    else:
+        text = _read_text(args)
+        pal = args.palette or os.environ.get("ALP_PALETTE", "default")
+        if text.lstrip().startswith(("$", "!")) or args.mode != "write":
+            if text.lstrip().startswith(("$", "!")):
+                c, val = alpt.parse_composition(text), True
+            else:
+                (t0, *_) = _translator(args).translate_text(text)
+                c, val = t0.composition, t0.value
+            st = CharStyle(cell=args.cell, theme=theme, palette=pal, **ink)
+            secs = args.seconds if args.seconds > 0 else 4.0
+            if args.mode == "pulse":
+                frames = anim.pulse_word(c, val, st=st, seconds=secs, fps=args.fps, cycles=args.cycles)
+            elif args.mode == "trace":
+                frames = anim.trace_word(c, val, st=st, seconds=secs, fps=args.fps)
+            else:
+                frames = anim.write_word(c, val, st=st, seconds=secs if args.seconds > 0 else 3.0, fps=args.fps)
+        else:
+            tr = _translator(args)
+            words = []
+            for sent in split_sentences(text):
+                words += [(t.composition, t.value) for t in tr.translate(sent)]
+                words.append(None)
+            frames = anim.write_text(words, st=CharStyle(cell=args.cell, theme=theme, palette=pal, **ink), width=args.width,
+                                     seconds=args.seconds if args.seconds > 0 else None, fps=args.fps)
+    for p in outs:
+        anim.save(frames, p, fps=args.fps)
+        print(f"wrote {p}  ({len(frames)} frames @ {args.fps} fps)")
     return 0
 
 
@@ -568,6 +618,8 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--no-headline", action="store_true", help="omit the word headline")
         sp.add_argument("--mono", action="store_true", help="monochrome script (classes by shape only)")
         sp.add_argument("--ink", choices=["crisp", "medium", "soft"], default="medium", help="edge softness / ink blending level")
+        sp.add_argument("--palette", default=None, help="class colour palette: default|neon|ember|ocean|mono or a JSON file (also $ALP_PALETTE)")
+        sp.add_argument("--captions", action="store_true", help="set the English reading under each word in the script")
 
     sp = sub.add_parser("translate", help="English -> compositions (no stream)")
     text_inputs(sp)
@@ -666,6 +718,25 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--svg", help="also write the script as SVG (vector)")
     image_outputs(sp)
     sp.set_defaults(func=cmd_transcribe)
+
+    sp = sub.add_parser("animate", help="write a word / text / title sequence stroke by stroke to GIF or MP4")
+    text_inputs(sp)
+    translator_opts(sp)
+    sp.add_argument("--gif"); sp.add_argument("--mp4")
+    sp.add_argument("--fps", type=int, default=24)
+    sp.add_argument("--seconds", type=float, default=0, help="drawing time (0 = automatic)")
+    sp.add_argument("--cell", type=int, default=120)
+    sp.add_argument("--width", type=int, default=1280); sp.add_argument("--height", type=int, default=720)
+    sp.add_argument("--mode", choices=["write", "pulse", "trace"], default="write",
+                    help="write = stroke by stroke; pulse = finished, colours cycling and ink breathing (loops); trace = a highlight travelling the strokes (loops)")
+    sp.add_argument("--cycles", type=float, default=1.0, help="pulse: hue rotations per loop")
+    sp.add_argument("--palette", default=None, help="default|neon|ember|ocean|mono or a JSON file")
+    sp.add_argument("--title-sequence", action="store_true", help="title card, the twelve heads, then the text")
+    sp.add_argument("--title", default="ALP"); sp.add_argument("--subtitle", default="a written language for machines")
+    sp.add_argument("--theme", choices=["auto", "dark", "light"], default="auto")
+    sp.add_argument("--ink", choices=["crisp", "medium", "soft"], default="medium")
+    sp.add_argument("--frame", choices=["faint", "on", "off"], default="off"); sp.add_argument("--no-headline", action="store_true"); sp.add_argument("--mono", action="store_true")
+    sp.set_defaults(func=cmd_animate)
 
     sp = sub.add_parser("chart", help="the character chart: heads, every modifier as a transformation, literals")
     image_outputs(sp)

@@ -16,14 +16,19 @@ from __future__ import annotations
 
 import hashlib
 import re
-from dataclasses import dataclass, field
-from typing import Any, Iterator, Union
+from collections.abc import Iterator
+from dataclasses import dataclass
+from typing import Any, Union
 
 from . import alpb
-from .alpb import Pid, Ref, REF_SID_FULL, REF_SID
 from . import inventory as inv
+from .alpb import REF_SID, REF_SID_FULL, Pid, Ref
 from .inventory import (
-    CLASS_ONTOLOGICAL, CLASS_STRUCTURAL, MAX_DEPTH, MAX_MODIFIERS, ROLES, ROLE_NAMES,
+    CLASS_ONTOLOGICAL,
+    CLASS_STRUCTURAL,
+    MAX_DEPTH,
+    MAX_MODIFIERS,
+    ROLE_NAMES,
 )
 
 
@@ -102,7 +107,7 @@ class Composition:
         residue: str | None = None,
         supersedes: bytes | None = None,
         gloss: str | None = None,
-    ) -> "Composition":
+    ) -> Composition:
         """Friendly constructor accepting primitive names."""
         def as_node(x: Any) -> Node:
             if isinstance(x, str):
@@ -113,7 +118,7 @@ class Composition:
         rs = {inv.role_code(k): as_node(v) for k, v in (roles or {}).items()}
         return cls(h, mods, tuple(rs.items()), residue, supersedes, gloss)
 
-    def with_gloss(self, gloss: str | None) -> "Composition":
+    def with_gloss(self, gloss: str | None) -> Composition:
         return Composition(self.head, self.modifiers, self.roles, self.residue, self.supersedes, gloss)
 
     # -- validation (§5.1) ------------------------------------------------------
@@ -153,7 +158,7 @@ class Composition:
         for _ in self._walk(seen=(id(self),)):
             pass
 
-    def _walk(self, seen: tuple[int, ...] = ()) -> Iterator["Composition"]:
+    def _walk(self, seen: tuple[int, ...] = ()) -> Iterator[Composition]:
         for child in self.children():
             if isinstance(child, Composition):
                 if id(child) in seen:
@@ -182,7 +187,7 @@ class Composition:
         return m
 
     @classmethod
-    def from_map(cls, m: dict[str, Any]) -> "Composition":
+    def from_map(cls, m: dict[str, Any]) -> Composition:
         if not isinstance(m, dict) or "h" not in m:
             raise CompositionError("E_MALFORMED: composition record needs a head")
         head = m["h"]

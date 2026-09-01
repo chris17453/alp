@@ -30,16 +30,15 @@ should be fed to a model.
 from __future__ import annotations
 
 import io
-import math
 import os
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Sequence, Union
+from typing import Any, Union
 
 from PIL import Image, ImageDraw, ImageFont
 
-from .alpb import Pid
 from . import inventory as inv
-from .composition import Composition, Node
+from .composition import Composition
 
 # ---------------------------------------------------------------------------
 # Themes and layout constants
@@ -156,6 +155,8 @@ class Chars:
     blend: float = 0.84
     feather: float = 0.7
     grain: float = 0.05
+    palette: str = "default"
+    captions: bool = False
 
 
 @dataclass
@@ -428,7 +429,7 @@ def save_pdf(doc: Doc, path: str, title: str = "ALP", theme: str = "light") -> s
     return path
 
 
-CHAR_DEFAULTS: dict = {"frame": "faint", "headline": True, "color": True, "blend": 0.84, "feather": 0.7, "grain": 0.05}
+CHAR_DEFAULTS: dict = {"frame": "faint", "headline": True, "color": True, "blend": 0.84, "feather": 0.7, "grain": 0.05, "palette": "default", "captions": False}
 
 
 def set_char_defaults(**kw) -> None:
@@ -436,14 +437,15 @@ def set_char_defaults(**kw) -> None:
     CHAR_DEFAULTS.update(kw)
 
 
-def _chars(words: list, cell: int, theme: str) -> "Chars":
+def _chars(words: list, cell: int, theme: str) -> Chars:
     return Chars(words, cell=cell, theme=theme, **CHAR_DEFAULTS)
 
 
-def _chars_image(item: "Chars", width: int) -> Image.Image:
+def _chars_image(item: Chars, width: int) -> Image.Image:
     from . import script
     return script.render_text(item.words, script.CharStyle(cell=item.cell, theme=item.theme, frame=item.frame, headline=item.headline,
-                                                             color=item.color, blend=item.blend, feather=item.feather, grain=item.grain), width=width, margin=0)
+                                                             color=item.color, blend=item.blend, feather=item.feather, grain=item.grain,
+                                                             palette=item.palette), width=width, margin=0, captions=item.captions)
 
 
 # ---------------------------------------------------------------------------
@@ -512,7 +514,7 @@ def doc_for_stream(stream, title: str | None = None, alpt_text: str | None = Non
     First the *conversation*: every ASSERT as one line of script (the words
     with their bound literals), the way it would be read.  Then the audit:
     each event with its ALP/T and, for AMEND/GROUND, the new symbols."""
-    from .alpt import event_block, fmt_term
+    from .alpt import event_block
     doc: Doc = [Heading(title or f"ALP stream {stream.stream_id.hex()[:16]}…", 1),
                 Para(f"{len(stream)} events · profile {stream.profile} · {len(stream.lexicon())} symbols", dim=True)]
     # conversation
@@ -594,13 +596,13 @@ def doc_for_chart(theme: str = "dark") -> Doc:
             Para("Row 1: the twelve heads.  Following rows: each modifier class applied to one head "
                  "(modal · scalar · temporal · causal · epistemic · illocutionary · valence · relational · deictic · logical · affect).  "
                  "Last row: numerals, names (cartouches), a reference seal, a unit.", dim=True),
-            Img(script.render_chart(script.CharStyle(cell=72, theme=theme, frame=True, **{k: CHAR_DEFAULTS[k] for k in ("blend", "feather", "grain")})))]
+            Img(script.render_chart(script.CharStyle(cell=72, theme=theme, frame=True, **{k: CHAR_DEFAULTS[k] for k in ("blend", "feather", "grain", "palette")})))]
 
 
 def doc_for_inventory(theme: str = "light") -> Doc:
     """The key: every primitive drawn with the character script beside its name and sense."""
     from . import script
-    ink = {k: CHAR_DEFAULTS[k] for k in ("blend", "feather", "grain")}
+    ink = {k: CHAR_DEFAULTS[k] for k in ("blend", "feather", "grain", "palette")}
     return [Heading(f"ALP script — key, inventory v{inv.INVENTORY_VERSION}", 1),
             Img(script.render_key(script.CharStyle(cell=64, theme=theme, headline=False, **ink)))]
 

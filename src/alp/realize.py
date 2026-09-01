@@ -18,11 +18,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from . import inventory as inv
+from . import translate as T
 from .alpb import Pid, Ref
 from .composition import Composition, Node
-from . import inventory as inv
-from .inventory import ROLES, ROLE_NAMES
-from . import translate as T
+from .inventory import ROLE_NAMES, ROLES
 
 GENERIC_NOUN = {
     "ENTITY": "thing", "PROCESS": "process", "PROPERTY": "property", "RELATION": "relation",
@@ -304,7 +304,10 @@ def np(c: Composition, value: Any = True, path: str = "", case: str = "subj") ->
         elif rn == "CONDITION":
             tails.append("if " + clause(node, value, _sub(path, rn)) if isinstance(node, Composition) else "if " + node_text(node, value, _sub(path, rn)))
         else:
-            tails.append(f"{ROLE_PREP.get(rn, rn.lower())} {node_text(node, value, _sub(path, rn), 'obj')}")
+            prep = ROLE_PREP.get(rn, rn.lower())
+            if rn == "LOC" and isinstance(node, Composition) and inv.name_of(node.head) == "GROUP":
+                prep = "on"
+            tails.append(f"{prep} {node_text(node, value, _sub(path, rn), 'obj')}")
     return " ".join([phrase] + tails)
 
 
@@ -356,6 +359,8 @@ def clause(c: Composition, value: Any = True, path: str = "", drop_subject: bool
                 tails.append(_lit(_bound(value, _sub(path, rn))))
         else:
             prep = ROLE_PREP.get(rn, rn.lower())
+            if rn == "LOC" and isinstance(node, Composition) and inv.name_of(node.head) == "GROUP":
+                prep = "on"
             if rn == "TIME":
                 b = _bound(value, _sub(path, rn))
                 prep = "on" if isinstance(b, str) and ":" not in b and "-" not in b else "after" if "AFTER" in m else "at"

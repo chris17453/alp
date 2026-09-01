@@ -1,20 +1,46 @@
 [project]
 name = "alp"
-version = "0.1.0"
-description = "Agent Lexicon Protocol (RFC-ALP-001) reference toolkit: ALP/B codec, ALP/T text form, English conversion, PNG/PDF rendering"
+version = "0.2.0"
+description = "ALP — an experimental written language for machines: composed, hashed symbols, a causal event protocol, and a script"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
+authors = [{ name = "Chris Watkins" }]
+keywords = ["agents", "protocol", "language", "script", "content-addressed"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Text Processing :: Linguistic",
+]
 dependencies = [
     "pillow>=10.0",
     "reportlab>=4.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/chris17453/alp"
+Repository = "https://github.com/chris17453/alp"
+Issues = "https://github.com/chris17453/alp/issues"
+
 [project.scripts]
 alp = "alp.cli:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "ruff>=0.5"]
+
+[tool.ruff]
+line-length = 140
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E731", "E741", "B007", "B023", "UP007", "E501", "E702", "F841", "F601", "F811"]
 
 [build-system]
 requires = ["hatchling"]

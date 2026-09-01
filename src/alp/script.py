@@ -36,13 +36,14 @@ from __future__ import annotations
 import hashlib
 import math
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Sequence
+from typing import Any
 
 from PIL import Image, ImageDraw
 
-from .alpb import Pid, Ref
 from . import inventory as inv
+from .alpb import Pid, Ref
 from .composition import Composition, Node
 
 GRID = 17
@@ -184,12 +185,76 @@ class CharStyle:
     frame: bool | str = "faint"    # em-box: False, True (dim outline) or "faint"
     headline: bool = True          # a line along the top joining the characters of a word (Devanagari style)
     color: bool = True             # modifier classes in their colours; the head in ink
+    palette: str = "default"       # a name in PALETTES or a JSON path (also ALP_PALETTE)
+    hue_shift: float = 0.0         # rotate every class colour (degrees) — used by the pulse animation
     supersample: int = 4           # render at N× and downsample: soft, blended edges
     blend: float = 0.84            # ink opacity of a stroke's core; halo and body are lighter
     grain: float = 0.05            # paper grain / dither strength (0 = none)
     feather: float = 0.7           # edge softness multiplier
     pressure: bool = True          # brush pressure profiles and a slight bow on long strokes
     grid: bool = False             # faint grid (design aid)
+
+
+# Colour palettes: class -> colour, per theme.  Selectable per render (--palette),
+# per environment (ALP_PALETTE), or from a JSON file {"dark": {...}, "light": {...}}.
+PALETTES: dict[str, dict[str, dict[str, tuple]]] = {
+    "default": {
+        "dark":  {"modal": (170, 140, 255), "scalar": (255, 176, 64), "temporal": (72, 200, 220), "causal": (255, 96, 96),
+                  "epistemic": (120, 220, 130), "illoc": (240, 120, 210), "valence": (240, 210, 70), "relational": (255, 140, 110),
+                  "deictic": (110, 170, 255), "logical": (160, 190, 220), "affect": (255, 130, 160), "literal": (206, 168, 112)},
+        "light": {"modal": (98, 60, 200), "scalar": (196, 110, 0), "temporal": (0, 130, 150), "causal": (200, 40, 40),
+                  "epistemic": (30, 140, 60), "illoc": (170, 40, 150), "valence": (170, 130, 0), "relational": (200, 80, 40),
+                  "deictic": (30, 90, 200), "logical": (80, 110, 150), "affect": (200, 60, 110), "literal": (140, 100, 50)},
+    },
+    "neon": {
+        "dark":  {"modal": (190, 90, 255), "scalar": (255, 230, 0), "temporal": (0, 255, 240), "causal": (255, 40, 90),
+                  "epistemic": (60, 255, 120), "illoc": (255, 80, 255), "valence": (255, 160, 0), "relational": (255, 110, 60),
+                  "deictic": (60, 140, 255), "logical": (170, 220, 255), "affect": (255, 90, 170), "literal": (240, 200, 120)},
+        "light": {"modal": (120, 40, 220), "scalar": (200, 150, 0), "temporal": (0, 160, 170), "causal": (220, 20, 70),
+                  "epistemic": (0, 160, 70), "illoc": (200, 30, 200), "valence": (210, 120, 0), "relational": (220, 80, 30),
+                  "deictic": (20, 90, 230), "logical": (70, 120, 170), "affect": (220, 50, 130), "literal": (150, 110, 50)},
+    },
+    "ember": {
+        "dark":  {"modal": (255, 150, 90), "scalar": (255, 200, 90), "temporal": (230, 120, 70), "causal": (255, 70, 50),
+                  "epistemic": (240, 190, 140), "illoc": (255, 120, 120), "valence": (255, 220, 120), "relational": (240, 140, 80),
+                  "deictic": (255, 170, 130), "logical": (220, 180, 150), "affect": (255, 110, 140), "literal": (220, 180, 120)},
+        "light": {"modal": (200, 80, 30), "scalar": (190, 130, 0), "temporal": (180, 70, 30), "causal": (200, 30, 20),
+                  "epistemic": (160, 110, 60), "illoc": (200, 60, 60), "valence": (180, 140, 20), "relational": (190, 90, 30),
+                  "deictic": (200, 100, 60), "logical": (150, 110, 80), "affect": (200, 50, 80), "literal": (150, 110, 60)},
+    },
+    "ocean": {
+        "dark":  {"modal": (140, 170, 255), "scalar": (120, 230, 200), "temporal": (80, 200, 255), "causal": (255, 120, 140),
+                  "epistemic": (150, 240, 220), "illoc": (200, 150, 255), "valence": (220, 240, 150), "relational": (160, 200, 255),
+                  "deictic": (100, 190, 255), "logical": (170, 200, 230), "affect": (240, 150, 200), "literal": (190, 180, 140)},
+        "light": {"modal": (60, 80, 200), "scalar": (0, 140, 120), "temporal": (0, 120, 190), "causal": (200, 50, 80),
+                  "epistemic": (0, 150, 130), "illoc": (120, 60, 200), "valence": (120, 150, 0), "relational": (60, 110, 200),
+                  "deictic": (0, 110, 200), "logical": (80, 110, 150), "affect": (190, 60, 130), "literal": (130, 110, 70)},
+    },
+    "mono": {   # classes by shape only; a single warm ink
+        "dark":  {k: (236, 226, 200) for k in ("modal", "scalar", "temporal", "causal", "epistemic", "illoc", "valence", "relational", "deictic", "logical", "affect", "literal")},
+        "light": {k: (40, 34, 24) for k in ("modal", "scalar", "temporal", "causal", "epistemic", "illoc", "valence", "relational", "deictic", "logical", "affect", "literal")},
+    },
+}
+
+
+def load_palette(name_or_path: str) -> dict[str, dict[str, tuple]]:
+    """A built-in palette by name, or a JSON file {"dark": {class: [r,g,b]}, "light": {...}}."""
+    import json
+    import os
+    if name_or_path in PALETTES:
+        return PALETTES[name_or_path]
+    if os.path.exists(name_or_path):
+        raw = json.load(open(name_or_path))
+        return {theme: {k: tuple(v) for k, v in classes.items()} for theme, classes in raw.items()}
+    raise ValueError(f"unknown palette {name_or_path!r}; built-ins: {', '.join(PALETTES)}")
+
+
+def _shift_hue(rgb: tuple, degrees: float) -> tuple:
+    import colorsys
+    r, g, b = [c / 255 for c in rgb[:3]]
+    h, l, s_ = colorsys.rgb_to_hls(r, g, b)
+    r2, g2, b2 = colorsys.hls_to_rgb((h + degrees / 360.0) % 1.0, l, s_)
+    return (int(r2 * 255), int(g2 * 255), int(b2 * 255))
 
 
 INK_PRESETS = {   # --ink crisp|medium|soft
@@ -199,11 +264,11 @@ INK_PRESETS = {   # --ink crisp|medium|soft
 }
 
 THEMES = {
-    "dark": {"bg": (14, 14, 16), "ink": (240, 240, 234), "dim": (92, 92, 96), "faint": (44, 44, 48), "clay": (206, 168, 112),
+    "dark": {"bg": (14, 14, 16), "ink": (240, 240, 234), "dim": (92, 92, 96), "faint": (44, 44, 48), "clay": (206, 168, 112), "text": (170, 170, 166),
              "modal": (170, 140, 255), "scalar": (255, 176, 64), "temporal": (72, 200, 220), "causal": (255, 96, 96),
              "epistemic": (120, 220, 130), "illoc": (240, 120, 210), "valence": (240, 210, 70), "relational": (255, 140, 110),
              "deictic": (110, 170, 255), "logical": (160, 190, 220), "affect": (255, 130, 160), "literal": (206, 168, 112)},
-    "light": {"bg": (255, 255, 255), "ink": (22, 22, 24), "dim": (170, 170, 166), "faint": (226, 226, 222), "clay": (140, 100, 50),
+    "light": {"bg": (255, 255, 255), "ink": (22, 22, 24), "dim": (170, 170, 166), "faint": (226, 226, 222), "clay": (140, 100, 50), "text": (90, 90, 90),
               "modal": (98, 60, 200), "scalar": (196, 110, 0), "temporal": (0, 130, 150), "causal": (200, 40, 40),
               "epistemic": (30, 140, 60), "illoc": (170, 40, 150), "valence": (170, 130, 0), "relational": (200, 80, 40),
               "deictic": (30, 90, 200), "logical": (80, 110, 150), "affect": (200, 60, 110), "literal": (140, 100, 50)},
@@ -213,6 +278,41 @@ THEMES = {
 # ---------------------------------------------------------------------------
 # Pen
 # ---------------------------------------------------------------------------
+
+class Budget:
+    """Animation progress: how many stroke-units may be drawn.  A pen consults
+    ``BUDGET`` (module global) if set; each band costs 1, each fill/disc 0.35.
+    With ``counting`` it only tallies, so a caller can learn the total."""
+
+    def __init__(self, remaining: float = float("inf"), counting: bool = False, start: float = 0.0) -> None:
+        self.remaining = remaining
+        self.counting = counting
+        self.start = start          # units to skip before drawing begins (a window: start..start+remaining)
+        self.total = 0.0
+
+    def take(self, cost: float) -> float:
+        """Returns the fraction of this unit that may be drawn (0..1)."""
+        self.total += cost
+        if self.counting:
+            return 1.0
+        if self.start > 0:
+            self.start -= cost
+            if self.start >= 0:
+                return 0.0
+            over = -self.start
+            self.start = 0.0
+            frac = min(1.0, over / cost)
+            self.remaining -= over
+            return frac
+        if self.remaining <= 0:
+            return 0.0
+        frac = min(1.0, self.remaining / cost)
+        self.remaining -= cost
+        return frac
+
+
+BUDGET: Budget | None = None
+
 
 class _Pen:
     """The stroke set, drawn like a brush.
@@ -238,7 +338,15 @@ class _Pen:
         return self.ox + x * self.u, self.oy + y * self.u
 
     # -- compositing ---------------------------------------------------------
+    _in_band = False
+
     def _fill(self, pts: list[tuple[float, float]], ink, alpha: float | None = None) -> None:
+        if BUDGET is not None and not _Pen._in_band:
+            frac = BUDGET.take(0.35)
+            if frac <= 0:
+                return
+            if frac < 1:
+                alpha = (alpha if alpha is not None else self.st.blend) * frac
         if self.img is None or len(pts) < 3:
             self.d.polygon(pts, fill=ink)
             return
@@ -288,12 +396,23 @@ class _Pen:
         density falls off across the stroke and the edge is soft."""
         if len(pts) < 2:
             return
-        if self.img is None:
-            self.d.polygon(self._outline(pts, half), fill=ink)
-            return
-        a = self.st.blend
-        for mult, alpha in ((1.5, a * 0.14), (1.12, a * 0.45), (0.62, a * 1.0)):
-            self._fill(self._outline(pts, [h * mult for h in half]), ink, alpha)
+        if BUDGET is not None:
+            frac = BUDGET.take(1.0)
+            if frac <= 0:
+                return
+            if frac < 1:
+                n = max(2, int(round(len(pts) * frac)))
+                pts, half = pts[:n], half[:n]
+        _Pen._in_band = True
+        try:
+            if self.img is None:
+                self.d.polygon(self._outline(pts, half), fill=ink)
+                return
+            a = self.st.blend
+            for mult, alpha in ((1.5, a * 0.14), (1.12, a * 0.45), (0.62, a * 1.0)):
+                self._fill(self._outline(pts, [h * mult for h in half]), ink, alpha)
+        finally:
+            _Pen._in_band = False
 
     # -- pressure profiles: half-width as a fraction of w along t in 0..1 ---------
     @staticmethod
@@ -598,7 +717,7 @@ def _plan(comp: Composition) -> _Plan:
 INK_BUDGET = 6        # components per character before a composition is written as a compound
 
 
-def _components(pl: "_Plan", roles: list, hname: str) -> int:
+def _components(pl: _Plan, roles: list, hname: str) -> int:
     lob = LOBES.get(hname)
     below = [r for r in roles if not (lob is not None and r[0] in (1, 2))]
     return (len(pl.scalar) + len(pl.epistemic) + len(pl.modal) + len(pl.temporal) + len(pl.valence) + len(pl.illoc)
@@ -606,7 +725,7 @@ def _components(pl: "_Plan", roles: list, hname: str) -> int:
             + (1 if pl.negate else 0) + len(below) + (1 if len(roles) > len(below) else 0))
 
 
-def _split_plan(pl: "_Plan") -> tuple["_Plan", "_Plan"]:
+def _split_plan(pl: _Plan) -> tuple[_Plan, _Plan]:
     """Compound split: the first character keeps what shapes the head itself
     (scale, stroke, enclosure, negation, inner marks, connector); the second
     carries what stands around it (crown, ground, radical, logic) and the
@@ -631,7 +750,7 @@ class _Layout:
     head: tuple = (0, 0, 0)                             # (hx0, hy0, side)
 
 
-def _layout(pl: "_Plan", has_below_roles: bool, scalar_scale: float) -> _Layout:
+def _layout(pl: _Plan, has_below_roles: bool, scalar_scale: float) -> _Layout:
     """Structure selection: bands exist only for components that are present,
     and the head takes the largest square that remains (米 grid: everything
     is centred on the vertical axis through the head)."""
@@ -676,7 +795,7 @@ def _layout(pl: "_Plan", has_below_roles: bool, scalar_scale: float) -> _Layout:
 
 
 def draw_char(draw: ImageDraw.ImageDraw, comp: Composition | None, x: float, y: float, st: CharStyle,
-              depth: int = 0, part: int = 0, pl_override: "_Plan | None" = None, roles_override: list | None = None) -> None:
+              depth: int = 0, part: int = 0, pl_override: _Plan | None = None, roles_override: list | None = None) -> None:
     """Compose one character at (x, y).
 
     ``part`` 0 = a whole composition or the first character of a compound,
@@ -697,8 +816,14 @@ def draw_char(draw: ImageDraw.ImageDraw, comp: Composition | None, x: float, y: 
     pl = pl_override if pl_override is not None else _plan(comp)
     roles = list(comp.roles) if roles_override is None else list(roles_override)
     ink = C["ink"]
+    import os as _os
+    pal = load_palette(st.palette if st.palette != "default" else _os.environ.get("ALP_PALETTE", "default")).get(st.theme, {})
+
     def K(cls: str):
-        return C[cls] if st.color else C["ink"]
+        if not st.color:
+            return C["ink"]
+        col = pal.get(cls, C.get(cls, C["ink"]))
+        return _shift_hue(col, st.hue_shift) if st.hue_shift else col
 
     scalar_scale, fillmode = 1.0, None
     if pl.scalar:
@@ -1356,10 +1481,11 @@ def _canvas(w: int, h: int, bg) -> tuple[Image.Image, ImageDraw.ImageDraw]:
     return img, ImageDraw.Draw(img)
 
 
-def _down(img: Image.Image, S: int, st: "CharStyle | None" = None) -> Image.Image:
+def _down(img: Image.Image, S: int, st: CharStyle | None = None) -> Image.Image:
     """Feather, downsample, and lay paper grain over the ink."""
-    from PIL import ImageFilter, ImageChops
     import random
+
+    from PIL import ImageChops, ImageFilter
     feather = (st.feather if st else 1.0)
     grain = (st.grain if st else 0.07)
     out = img.convert("RGB")
@@ -1402,11 +1528,14 @@ Utterance = tuple  # (Composition, value) ; None = line break
 
 
 def render_text(words: Sequence[Utterance | Composition | None], st: CharStyle | None = None, width: int = 1200,
-                margin: int = 24, line_gap: float = 0.45) -> Image.Image:
-    """Lay utterances out as running text.  ``None`` forces a line break."""
+                margin: int = 24, line_gap: float = 0.45, captions: bool = False) -> Image.Image:
+    """Lay utterances out as running text.  ``None`` forces a line break.
+    With ``captions`` the realizer's English is set under each word."""
     st = st or CharStyle()
     C = THEMES[st.theme]
     inner = width - 2 * margin
+    if captions:
+        line_gap = max(line_gap, 0.9)
     norm: list[tuple[Composition, Any] | None] = []
     for w in words:
         if w is None:
@@ -1434,11 +1563,37 @@ def render_text(words: Sequence[Utterance | Composition | None], st: CharStyle |
     height = int(2 * margin + len(lines) * line_h)
     hs, S = _hi(st)
     img, d = _canvas(width * S, height * S, C["bg"])
+    cap_font = None
+    if captions:
+        from PIL import ImageFont
+        try:
+            cap_font = ImageFont.truetype("DejaVuSans.ttf", max(10, int(st.cell * 0.2)) * S)
+        except Exception:  # noqa: BLE001
+            cap_font = ImageFont.load_default()
     y = margin * S
     for line in lines:
         x = margin * S
         for comp, value in line:
-            x = draw_word(d, comp, x, y, hs, value) + hs.word_gap * hs.cell
+            x0 = x
+            x = draw_word(d, comp, x, y, hs, value)
+            if captions and cap_font is not None:
+                from .realize import realize
+                text = realize(comp, value)
+                maxw = max(x - x0, hs.cell * 2.5)
+                # wrap to the word's width
+                lines_out, cur = [], ""
+                for w in text.split():
+                    cand = (cur + " " + w).strip()
+                    if d.textbbox((0, 0), cand, font=cap_font)[2] <= maxw or not cur:
+                        cur = cand
+                    else:
+                        lines_out.append(cur); cur = w
+                lines_out.append(cur)
+                cy = y + hs.cell + 0.12 * hs.cell
+                for ln in lines_out[:3]:
+                    d.text((x0 + 0.05 * hs.cell, cy), ln, font=cap_font, fill=C.get("text", C["dim"]))
+                    cy += cap_font.size * 1.15 if hasattr(cap_font, "size") else 12 * S
+            x += hs.word_gap * hs.cell
         y += line_h * S
     return _down(img, S, st)
 

@@ -88,11 +88,11 @@ class Ref:
     def hex(self) -> str:
         return self.data.hex()
 
-    def full(self) -> "Ref":
+    def full(self) -> Ref:
         """Return the same reference marked as full-width (32 bytes)."""
         return Ref(REF_SID_FULL if self.is_sid else REF_EID_FULL, self.data)
 
-    def profiled(self) -> "Ref":
+    def profiled(self) -> Ref:
         """Return the same reference marked as profile-width."""
         return Ref(REF_SID if self.is_sid else REF_EID, self.data)
 

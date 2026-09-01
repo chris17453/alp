@@ -29,3 +29,36 @@ uv run python examples/two_agents.py --alpt $OUT/08-two-agents.alpt --png $OUT/0
 uv run python examples/build_conversation.py > $OUT/09-appendix-d.alpt
 
 ls $OUT
+
+# animation: a word written stroke by stroke; the letter being written; a short title film
+$A animate "\$RELATION.CAUSE.INFERRED.CONTESTED :ARG0 (\$EVENT.PAST.PUNCTUAL) :ARG1 (\$STATE.NEGATE.BAD :SCOPE \$PROCESS)" \
+   --gif $OUT/10-one-word.gif --mp4 $OUT/10-one-word.mp4 --cell 160 --fps 20 --seconds 3.5
+$A animate -f examples/document.txt --mp4 $OUT/11-document-written.mp4 --cell 64 --fps 18 --width 1280
+$A animate --title-sequence "We suspect the deploy caused the outage." --mp4 $OUT/12-title-sequence.mp4 --fps 20
+
+ls $OUT
+
+# options: English captions under the words; the same word alive (pulse) and traced; the palettes
+$A render examples/complex.txt --captions --no-translit --png $OUT/04b-complex-captions.png --cell 80 --title "complex thoughts — with English captions"
+$A animate "\$RELATION.CAUSE.INFERRED.CONTESTED :ARG0 (\$EVENT.PAST.PUNCTUAL) :ARG1 (\$STATE.NEGATE.BAD :SCOPE \$PROCESS)" --mode pulse --palette neon --gif $OUT/13-pulse.gif --cell 140 --fps 15 --seconds 4
+$A animate "\$RELATION.CAUSE.INFERRED.CONTESTED :ARG0 (\$EVENT.PAST.PUNCTUAL) :ARG1 (\$STATE.NEGATE.BAD :SCOPE \$PROCESS)" --mode trace --gif $OUT/14-trace.gif --cell 140 --fps 15 --seconds 4
+uv run python - <<'PY'
+from PIL import Image, ImageDraw, ImageFont
+from alp import script
+from alp.composition import parse
+c = parse('$RELATION.CAUSE.INFERRED.CONTESTED :ARG0 ($EVENT.PAST.PUNCTUAL) :ARG1 ($STATE.NEGATE.BAD :SCOPE $PROCESS)')
+rows = []
+for name in script.PALETTES:
+    im = script.render_word(c, script.CharStyle(cell=110, palette=name))
+    rows.append((name, im))
+W = max(im.width for _, im in rows) + 160; H = sum(im.height + 16 for _, im in rows) + 16
+out = Image.new("RGB", (W, H), script.THEMES["dark"]["bg"]); d = ImageDraw.Draw(out)
+try: f = ImageFont.truetype("DejaVuSans.ttf", 18)
+except Exception: f = ImageFont.load_default()
+y = 8
+for name, im in rows:
+    d.text((12, y + im.height // 2 - 10), name, font=f, fill=script.THEMES["dark"]["text"])
+    out.paste(im, (150, y)); y += im.height + 16
+out.save("examples/output/15-palettes.png")
+PY
+ls $OUT | wc -l

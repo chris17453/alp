@@ -31,15 +31,25 @@ from __future__ import annotations
 
 import time
 from collections import deque
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Iterable
+from typing import Any
 
 from . import alpb
-from .alpb import Pid, Ref, REF_SID, REF_EID
-from .composition import Composition, SIDMismatch, verify as verify_comp
+from .alpb import REF_SID, Pid, Ref
+from .composition import Composition, SIDMismatch
+from .composition import verify as verify_comp
 from .events import (
-    AttestLevel, ErrorCode, Event, EventType, Stream, StreamError, decode_body, split_frames,
-    PROFILE_CODES, HASH_ALG_SHA256, agent_symbol,
+    PROFILE_CODES,
+    AttestLevel,
+    ErrorCode,
+    Event,
+    EventType,
+    Stream,
+    StreamError,
+    agent_symbol,
+    decode_body,
+    split_frames,
 )
 from .inventory import INVENTORY_VERSION, PRIMITIVES
 
@@ -338,7 +348,7 @@ class Peer:
                         verify_comp(c, r)
                     except SIDMismatch as e:
                         self.error(ErrorCode.E_SID_MISMATCH, str(e))
-                        raise ProtocolError(ErrorCode.E_SID_MISMATCH, str(e))
+                        raise ProtocolError(ErrorCode.E_SID_MISMATCH, str(e)) from e
                     self.requested.discard(r)
 
     def _answer_expand(self, ev: Event) -> None:

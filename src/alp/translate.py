@@ -38,9 +38,9 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from . import inventory as inv
 from .alpb import Pid
 from .composition import Composition
-from . import inventory as inv
 from .inventory import MAX_MODIFIERS, pid
 
 # ---------------------------------------------------------------------------
@@ -565,7 +565,7 @@ class _NP:
     head: Pid | None = None
     mods: set = field(default_factory=set)
     names: list[str] = field(default_factory=list)
-    roles: dict[int, "_NP"] = field(default_factory=dict)
+    roles: dict[int, _NP] = field(default_factory=dict)
     words: list[str] = field(default_factory=list)
     number: float | int | None = None
     unit: str | None = None
@@ -885,12 +885,22 @@ class Translator:
                         cur = owner.roles[role]          # "at 12:00 on 2026-09-01": one TIME
                         role_target = (owner, role)
                         continue
-                    role = next((r for r in (inv.ROLES["ARG2"], inv.ROLES["SCOPE"], inv.ROLES["MANNER"]) if r not in owner.roles), role)
+                    if role == inv.ROLES["LOC"]:
+                        owner = owner.roles[role]        # "on the team in Berlin": the second place locates the first
+                    else:
+                        role = next((r for r in (inv.ROLES["ARG2"], inv.ROLES["SCOPE"], inv.ROLES["MANNER"]) if r not in owner.roles), role)
                 cur = new_np_for_pp(owner, role)
                 role_target = (owner, role)
                 continue
 
             hit = self._lookup(t)
+            if hit is not None and hit[0] == "head" and pred is None and causal is None and not after_copula \
+                    and cur is subject and subject.head is not None and role_target is None and toks[i - 2:i - 1] not in (["the"], ["a"], ["an"]):
+                # "I work on…", "the team runs…": a noun that can also be a verb, right after a subject, is the verb
+                for stem, implied in _stem_candidates(t):
+                    if stem in self.verbs:
+                        hit = ("verb", self.verbs[stem], implied)
+                        break
             if hit is None:
                 # unknown content word: a name, bound as data
                 consumed_here = False
@@ -1063,7 +1073,7 @@ class Translator:
             elif self.names_mode == "drop":
                 residue_words.extend(np.names)
         if np.ref is not None:
-            from .alpb import Ref, REF_SID
+            from .alpb import REF_SID, Ref
             self._literals[key] = Ref(REF_SID, np.ref)
         if np.number is not None or np.unit is not None or np.time is not None:
             lit: dict[str, Any] = {}

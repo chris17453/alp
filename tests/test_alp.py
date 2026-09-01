@@ -5,13 +5,12 @@ import sys
 import pytest
 
 from alp import alpb, alpt, render
-from alp.alpb import Pid, Ref, NonCanonical, REF_SID, REF_SID_FULL
-from alp.composition import Composition, CompositionError, parse, verify, SIDMismatch
-from alp.events import AttestLevel, Stream, new_stream_id, agent_sid, fold, toposort
-from alp.inventory import PRIMITIVES, ROLES, pid, by_class, CLASS_ONTOLOGICAL
-from alp.translate import Translator, SimpleTranslator, stats
+from alp.alpb import REF_SID, REF_SID_FULL, NonCanonical, Pid, Ref
+from alp.composition import Composition, CompositionError, SIDMismatch, parse, verify
+from alp.events import AttestLevel, Stream, fold, new_stream_id, toposort
+from alp.inventory import CLASS_ONTOLOGICAL, PRIMITIVES, ROLES, by_class, pid
 from alp.lexicon import find_forks, similarity
-
+from alp.translate import SimpleTranslator, Translator, stats
 
 # -- ALP/B -------------------------------------------------------------------
 
@@ -64,7 +63,7 @@ def test_uvarint():
 # -- inventory / composition ---------------------------------------------------
 
 def test_inventory_size():
-    from alp.inventory import V1_PRIMITIVES, INVENTORY_VERSION
+    from alp.inventory import INVENTORY_VERSION, V1_PRIMITIVES
     assert len(V1_PRIMITIVES) == 76 and INVENTORY_VERSION == 2 and len(PRIMITIVES) > 76
     assert pid("NEGATE").codepoint == ""
     assert pid("REF").code == 0x0800
@@ -340,8 +339,8 @@ def test_cli_pipeline(tmp_path):
 # -- peer runtime / svg ------------------------------------------------------------------
 
 def test_two_peers_converge_with_buffering_and_repair():
-    from alp.peer import Peer, PeerConfig, wire
     from alp.inventory import CLASS_AFFECT
+    from alp.peer import Peer, PeerConfig, wire
     sid = new_stream_id("t2")
     a, b = Peer("a", Stream(sid, 16), config=PeerConfig(checkpoint_every=6)), Peer("b", Stream(sid, 16), config=PeerConfig(checkpoint_every=6))
     pump = wire(a, b)
@@ -366,7 +365,7 @@ def test_two_peers_converge_with_buffering_and_repair():
 
 
 def test_svg_backend_matches_png_layout(tmp_path):
-    from alp import svg, script
+    from alp import script, svg
     c = Composition.build("RELATION", "CAUSE", "INFERRED", roles={"ARG0": "EVENT", "ARG1": Composition.build("STATE", "NEGATE", "BAD")})
     st = script.CharStyle(cell=64)
     text = svg.render_word_svg(c, st)
@@ -398,3 +397,19 @@ def test_translator_structures_and_realizer():
             assert out and (out[0].isupper() or out[0].isdigit()) and out.endswith((".", "?", "!")), (sent, out)
     (t,) = Translator().translate("We suspect the deploy caused the outage.")
     assert "caus" in realize(t.composition, t.value)
+
+
+def test_animation_frames_and_writers(tmp_path):
+    from alp import anim, script
+    c = Composition.build("STATE", "NEGATE", "BAD", roles={"SCOPE": "PROCESS"})
+    frames = anim.write_word(c, st=script.CharStyle(cell=64), seconds=0.5, fps=8, hold=0.1)
+    assert len(frames) >= 5 and frames[0].size == frames[-1].size
+    # ink accumulates monotonically: the last frame has at least as much ink as the first drawn frame
+    ink = lambda im: sum(im.convert("L").histogram()[60:])
+    assert ink(frames[-1]) > ink(frames[1])
+    anim.save_gif(frames, str(tmp_path / "w.gif"), fps=8)
+    assert (tmp_path / "w.gif").stat().st_size > 500
+    if anim.have_ffmpeg():
+        anim.save_mp4(frames, str(tmp_path / "w.mp4"), fps=8)
+        assert (tmp_path / "w.mp4").stat().st_size > 500
+    assert script.BUDGET is None

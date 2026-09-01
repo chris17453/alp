@@ -18,16 +18,17 @@ of the same call exactly.
 from __future__ import annotations
 
 import math
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
-from .composition import Composition
 from . import script
-from .script import CharStyle, THEMES, GRID
+from .composition import Composition
+from .script import THEMES, CharStyle
 
 
 def _rgb(c) -> str:
     if isinstance(c, tuple):
-        return "#%02x%02x%02x" % c[:3]
+        return "#{:02x}{:02x}{:02x}".format(*c[:3])
     return str(c)
 
 

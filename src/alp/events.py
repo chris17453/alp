@@ -39,12 +39,13 @@ from __future__ import annotations
 import hashlib
 import os
 import time
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Any, Iterable, Iterator
+from typing import Any
 
 from . import alpb
-from .alpb import Pid, Ref, REF_SID, REF_EID, HASH_LEN
+from .alpb import HASH_LEN, REF_EID, REF_SID, Pid, Ref
 from .composition import Composition
 from .inventory import INVENTORY_VERSION, PROTOCOL_VERSION
 
@@ -226,7 +227,7 @@ class Event:
     def iso_time(self) -> str:
         return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(self.timestamp))
 
-    def with_(self, **changes) -> "Event":
+    def with_(self, **changes) -> Event:
         d = dict(type=self.type, author=self.author, payload=self.payload, parents=self.parents,
                  timestamp=self.timestamp, stream_id=self.stream_id, flags=self.flags,
                  version=self.version, signature=self.signature, sid_width=self.sid_width)
@@ -601,7 +602,7 @@ class Stream:
         return write_frames(self.ordered())
 
     @classmethod
-    def from_bytes(cls, data: bytes, sid_width: int | None = None) -> "Stream":
+    def from_bytes(cls, data: bytes, sid_width: int | None = None) -> Stream:
         if sid_width is None:
             sid_width = sniff_profile(data)
             if sid_width is None:
@@ -612,7 +613,7 @@ class Stream:
             st.add(ev)
         return st
 
-    def reprofile(self, sid_width: int) -> "Stream":
+    def reprofile(self, sid_width: int) -> Stream:
         """Re-hash the stream at another profile.
 
         Widening (transport -> SID-256 archive) is exact when every reference
