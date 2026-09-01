@@ -268,19 +268,21 @@ class _Pen:
     # -- pressure profiles: half-width as a fraction of w along t in 0..1 ---------
     @staticmethod
     def _profile(kind: str, t: float) -> float:
+        """Half-width as a fraction of w.  Deliberately dramatic: ends at ~¼ of
+        the body, bellies and feet near double, so pressure reads at 60 px."""
         if kind == "heng":
-            entry = 0.30 + 0.12 * math.sin(min(1.0, t / 0.18) * math.pi / 2)
-            belly = 0.36 + 0.06 * math.cos(math.pi * t)
-            exit_ = 0.20 * max(0.0, (t - 0.72) / 0.28) ** 1.5
-            return min(entry, belly) + exit_
+            press_in = 0.30 * max(0.0, 1 - t / 0.10)                       # a touch-down, lighter than the exit
+            belly = 0.22 + 0.10 * math.sin(math.pi * min(1.0, t / 0.75))    # light travelling stroke
+            exit_ = 0.55 * max(0.0, (t - 0.70) / 0.30) ** 1.6               # heavy press before the lift
+            return max(press_in, belly) + exit_
         if kind == "shu":
-            return 0.55 - 0.08 * t + 0.10 * max(0.0, 1 - t / 0.12)
+            return 0.78 * max(0.0, 1 - t / 0.14) ** 0.6 * 0.5 + 0.40 + 0.20 * max(0.0, 1 - t / 0.14) - 0.16 * t
         if kind == "pie":
-            return 0.08 + 0.50 * (1 - t) ** 1.5
+            return 0.04 + 0.66 * (1 - t) ** 1.9
         if kind == "na":
-            if t < 0.86:
-                return 0.22 + 0.42 * t ** 1.7
-            return 0.22 + 0.42 * 0.86 ** 1.7 - 0.35 * ((t - 0.86) / 0.14) ** 2
+            if t < 0.84:
+                return 0.10 + 0.70 * (t / 0.84) ** 1.5
+            return 0.80 - 0.62 * ((t - 0.84) / 0.16) ** 1.2
         return 0.5
 
     def stroke(self, x0, y0, x1, y1, ink=None, w: float | None = None, kind: str | None = None,
@@ -311,19 +313,19 @@ class _Pen:
         ts = [i / n for i in range(n + 1)]
         bow = 0.0
         if self.st.pressure and L > 5 * w and kind in ("heng", "shu"):
-            bow = 0.018 * L * (1 if kind == "heng" else -1)
+            bow = 0.026 * L * (1 if kind == "heng" else -1)
         nx, ny = -dy / L, dx / L
         pts = [(X0 + dx * t + nx * bow * math.sin(math.pi * t), Y0 + dy * t + ny * bow * math.sin(math.pi * t)) for t in ts]
         half = [w * (self._profile(kind, t) if self.st.pressure else 0.5) for t in ts]
         self._band(pts, half, ink)
         if kind == "heng":
-            self._disc(X1, Y1, w * 0.60, ink); self._disc(X0, Y0, w * 0.34, ink)
+            self._disc(X1, Y1, w * 0.70, ink); self._disc(X0, Y0, w * 0.22, ink)
         elif kind == "shu":
-            self._disc(X0, Y0, w * 0.62, ink); self._disc(X1, Y1, w * 0.46, ink)
+            self._disc(X0, Y0, w * 0.58, ink); self._disc(X1, Y1, w * 0.28, ink)
         elif kind == "pie":
-            self._disc(X0, Y0, w * 0.56, ink)
+            self._disc(X0, Y0, w * 0.68, ink)
         elif kind == "na":
-            self._disc(X0, Y0, w * 0.26, ink)
+            self._disc(X0, Y0, w * 0.14, ink)
         else:
             self._disc(X0, Y0, w * 0.5, ink); self._disc(X1, Y1, w * 0.5, ink)
 
@@ -367,11 +369,17 @@ class _Pen:
                 self._band([(X0, Y0), (X1, Y1)], [w * 0.42, w * 0.42], ink)
 
     def dot(self, cx: float, cy: float, r: float = 0.45, ink=None) -> None:
+        """dian: a pressed oval, slightly heavier toward the lower right."""
         ink = ink or self.ink
         X, Y = self.P(cx, cy)
         R = max(1.5, r * self.u)
-        self._disc(X, Y, R, ink)
-        self._fill([(X - R * 0.7, Y - R * 0.7), (X + R * 0.95, Y + R * 0.15), (X + R * 0.15, Y + R * 0.95)], ink)
+        n = 24
+        pts = []
+        for i in range(n):
+            a = 2 * math.pi * i / n
+            rr = R * (1.0 + 0.18 * math.cos(a - math.pi / 4))
+            pts.append((X + rr * math.cos(a) * 1.05, Y + rr * math.sin(a) * 0.92))
+        self._fill(pts, ink)
 
     def arc(self, cx: float, cy: float, r: float, a0: float, a1: float, ink=None, w: float | None = None) -> None:
         ink = ink or self.ink
