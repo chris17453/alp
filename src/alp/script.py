@@ -181,7 +181,7 @@ class CharStyle:
     frame: bool | str = "faint"    # em-box: False, True (dim outline) or "faint"
     headline: bool = True          # a line along the top joining the characters of a word (Devanagari style)
     color: bool = True             # modifier classes in their colours; the head in ink
-    supersample: int = 3           # render at N× and downsample: soft, blended edges
+    supersample: int = 4           # render at N× and downsample: soft, blended edges
     blend: float = 0.94            # ink opacity per stroke; crossings darken a little
     pressure: bool = True          # brush pressure profiles and a slight bow on long strokes
     grid: bool = False             # faint grid (design aid)
@@ -278,11 +278,11 @@ class _Pen:
         if kind == "shu":
             return 0.78 * max(0.0, 1 - t / 0.14) ** 0.6 * 0.5 + 0.40 + 0.20 * max(0.0, 1 - t / 0.14) - 0.16 * t
         if kind == "pie":
-            return 0.04 + 0.66 * (1 - t) ** 1.9
+            return 0.24 + 0.46 * (1 - t) ** 1.6          # tapers, but never to a point
         if kind == "na":
-            if t < 0.84:
-                return 0.10 + 0.70 * (t / 0.84) ** 1.5
-            return 0.80 - 0.62 * ((t - 0.84) / 0.16) ** 1.2
+            if t < 0.88:
+                return 0.20 + 0.52 * (t / 0.88) ** 1.4   # swells to a rounded foot
+            return 0.72 - 0.12 * ((t - 0.88) / 0.12)
         return 0.5
 
     def stroke(self, x0, y0, x1, y1, ink=None, w: float | None = None, kind: str | None = None,
@@ -323,9 +323,9 @@ class _Pen:
         elif kind == "shu":
             self._disc(X0, Y0, w * 0.58, ink); self._disc(X1, Y1, w * 0.28, ink)
         elif kind == "pie":
-            self._disc(X0, Y0, w * 0.68, ink)
+            self._disc(X0, Y0, w * 0.68, ink); self._disc(X1, Y1, w * 0.24, ink)
         elif kind == "na":
-            self._disc(X0, Y0, w * 0.14, ink)
+            self._disc(X0, Y0, w * 0.20, ink); self._disc(X1, Y1, w * 0.60, ink)
         else:
             self._disc(X0, Y0, w * 0.5, ink); self._disc(X1, Y1, w * 0.5, ink)
 
@@ -342,10 +342,8 @@ class _Pen:
             pts.append(self.P(bx, by))
             half.append(w * (self._profile(kind, t) if self.st.pressure else 0.5))
         self._band(pts, half, ink)
-        if kind in ("pie", "shu"):
-            self._disc(pts[0][0], pts[0][1], w * 0.55, ink)
-        if kind == "heng":
-            self._disc(pts[-1][0], pts[-1][1], w * 0.6, ink)
+        self._disc(pts[0][0], pts[0][1], w * half[0] / w if half[0] else w * 0.3, ink)
+        self._disc(pts[-1][0], pts[-1][1], half[-1], ink)
 
     def seg(self, x0, y0, x1, y1, ink=None, w=None, dash=None, wedge=None) -> None:
         self.stroke(x0, y0, x1, y1, ink, w, None, dash)
@@ -1323,8 +1321,11 @@ def _canvas(w: int, h: int, bg) -> tuple[Image.Image, ImageDraw.ImageDraw]:
 
 
 def _down(img: Image.Image, S: int) -> Image.Image:
+    """Downsample with a light blur first: soft, ink-on-paper edges."""
+    from PIL import ImageFilter
     out = img.convert("RGB")
     if S > 1:
+        out = out.filter(ImageFilter.GaussianBlur(radius=S * 0.45))
         out = out.resize((max(1, img.width // S), max(1, img.height // S)), Image.LANCZOS)
     return out
 
@@ -1399,8 +1400,14 @@ def render_key(st: CharStyle | None = None, font=None) -> Image.Image:
     from PIL import ImageFont
     st = st or CharStyle(cell=64, theme="light", frame="faint", headline=False)
     from dataclasses import replace
-    st = replace(st, supersample=1)
+    S = 2
+    st = replace(st, supersample=1, cell=st.cell * S)
     C = THEMES[st.theme]
+    try:
+        font = ImageFont.truetype("DejaVuSans.ttf", 13 * S)
+        bold = ImageFont.truetype("DejaVuSans-Bold.ttf", 14 * S)
+    except Exception:  # noqa: BLE001
+        pass
     if font is None:
         try:
             font = ImageFont.truetype("DejaVuSans.ttf", 13)
@@ -1422,14 +1429,14 @@ def render_key(st: CharStyle | None = None, font=None) -> Image.Image:
                 comp = Composition(inv.pid("ENTITY"), frozenset([p]))
             rows.append((cls, p, comp))
     cell = st.cell
-    line = cell + 10
-    col_w = 400
+    line = cell + 10 * S
+    col_w = 400 * S
     ncol = 3
     # lay out by class: a class never splits across columns
     groups: dict[int, list] = {}
     for cls, p, comp in rows:
         groups.setdefault(cls, []).append((p, comp))
-    heights = {cls: 30 + len(items) * line for cls, items in groups.items()}
+    heights = {cls: 30 * S + len(items) * line for cls, items in groups.items()}
     total = sum(heights.values())
     target = total / ncol
     cols: list[list[int]] = [[]]
@@ -1438,21 +1445,21 @@ def render_key(st: CharStyle | None = None, font=None) -> Image.Image:
         if acc + heights[cls] > target * 1.05 and cols[-1] and len(cols) < ncol:
             cols.append([]); acc = 0
         cols[-1].append(cls); acc += heights[cls]
-    height = max(sum(heights[c] for c in col) for col in cols) + 40
-    img, d = _canvas(col_w * len(cols) + 20, height, C["bg"])
+    height = max(sum(heights[c] for c in col) for col in cols) + 40 * S
+    img, d = _canvas(col_w * len(cols) + 20 * S, height, C["bg"])
     for ci, col in enumerate(cols):
-        x0 = 20 + ci * col_w
-        y = 20
+        x0 = 20 * S + ci * col_w
+        y = 20 * S
         for cls in col:
             d.text((x0, y), f"class 0x{cls:02X}  {inv.CLASS_NAMES[cls]}", font=bold, fill=C["ink"])
-            y += 30
+            y += 30 * S
             for p, comp in groups[cls]:
                 draw_char(d, comp, x0, y, st)
-                d.text((x0 + cell + 12, y + 6), inv.name_of(p), font=bold, fill=C["ink"])
-                d.text((x0 + cell + 12, y + 26), inv.SENSES[p][:44], font=font, fill=C["dim"])
-                d.text((x0 + cell + 12, y + 44), f"U+{0xE000 + p.code:04X}", font=font, fill=C["dim"])
+                d.text((x0 + cell + 12 * S, y + 6 * S), inv.name_of(p), font=bold, fill=C["ink"])
+                d.text((x0 + cell + 12 * S, y + 26 * S), inv.SENSES[p][:44], font=font, fill=C["dim"])
+                d.text((x0 + cell + 12 * S, y + 44 * S), f"U+{0xE000 + p.code:04X}", font=font, fill=C["dim"])
                 y += line
-    return img.convert("RGB")
+    return _down(img, S)
 
 
 def render_chart(st: CharStyle | None = None) -> Image.Image:

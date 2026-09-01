@@ -1,7 +1,7 @@
 events: alice=29 bob=29  lexicon: 8/8  converged: True  pending@bob: 0  declined@bob: 1
 
-[bob] buffered ASSERT 2015af27: unknown ['037fac5d']
-[bob] applied buffered ASSERT 2015af27
+[bob] buffered ASSERT 2b890f07: unknown ['037fac5d']
+[bob] applied buffered ASSERT 2b890f07
 [bob] model replaced: 110 primitives, 0 symbols declined
 
 bob's hydration of the state:
