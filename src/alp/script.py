@@ -64,8 +64,9 @@ HEADS: dict[str, list[tuple]] = {
     "ENTITY":   [("poly", [(0.4, 0.4), (5.6, 0.4), (5.6, 5.6), (0.4, 5.6)], False),
                  LOD, ("poly", [(1.5, 1.5), (4.5, 1.5), (4.5, 4.5), (1.5, 4.5)], False)],
     # something that unfolds: a bold chevron band pointing forward
-    "PROCESS":  [("poly", [(0.4, 0.4), (2.4, 0.4), (5.7, 3.0), (2.4, 5.6), (0.4, 5.6), (3.4, 3.0)], False),
-                 LOD, ("seg", 0.4, 3.0, 2.0, 3.0)],
+    "PROCESS":  [("curve", 0.5, 0.3, 4.6, 1.0, 5.8, 3.0, "na"), ("curve", 5.8, 3.0, 4.6, 5.0, 0.5, 5.7, "pie"),
+                 ("curve", 0.5, 1.4, 2.6, 2.0, 3.6, 3.0, "na"), ("curve", 3.6, 3.0, 2.6, 4.0, 0.5, 4.6, "pie"),
+                 LOD, ("seg", 0.5, 3.0, 1.6, 3.0)],
     # an attribute borne: the lozenge with its centre
     "PROPERTY": [("poly", [(3.0, 0.2), (5.8, 3.0), (3.0, 5.8), (0.2, 3.0)], False),
                  LOD, ("circle", 3.0, 3.0, 0.55, True)],
@@ -76,8 +77,9 @@ HEADS: dict[str, list[tuple]] = {
     "QUANTITY": [("poly", [(0.3, 5.7), (0.3, 3.9), (2.1, 3.9), (2.1, 2.1), (3.9, 2.1), (3.9, 0.3), (5.7, 0.3), (5.7, 5.7)], False),
                  LOD, ("seg", 2.1, 5.7, 2.1, 3.9), ("seg", 3.9, 5.7, 3.9, 2.1)],
     # an actor: the house with a figure inside
-    "AGENT":    [("poly", [(0.4, 2.6), (3.0, 0.2), (5.6, 2.6), (5.6, 5.7), (0.4, 5.7)], False),
-                 LOD, ("circle", 3.0, 2.9, 0.55, True), ("seg", 3.0, 3.6, 3.0, 5.0)],
+    "AGENT":    [("curve", 3.0, 0.2, 1.2, 1.0, 0.4, 2.6, "pie"), ("curve", 3.0, 0.2, 4.8, 1.0, 5.6, 2.6, "na"),
+                 ("seg", 0.4, 2.6, 0.4, 5.7), ("seg", 5.6, 2.6, 5.6, 5.7), ("seg", 0.4, 5.7, 5.6, 5.7),
+                 LOD, ("circle", 3.0, 3.0, 0.55, True), ("seg", 3.0, 3.7, 3.0, 5.0)],
     # a condition holding: the ring (octagon) with a level line
     "STATE":    [("poly", [(1.9, 0.3), (4.1, 0.3), (5.7, 1.9), (5.7, 4.1), (4.1, 5.7), (1.9, 5.7), (0.3, 4.1), (0.3, 1.9)], False),
                  LOD, ("seg", 1.5, 3.0, 4.5, 3.0)],
@@ -88,15 +90,20 @@ HEADS: dict[str, list[tuple]] = {
     "MOMENT":   [("circle", 3.0, 3.0, 2.8, False), ("pie", 3.0, 3.0, 2.0, 270, 360),
                  LOD, ("seg", 3.0, 3.0, 3.0, 0.6)],
     # information: the pennant on its staff
-    "SIGN":     [("seg", 0.9, 0.3, 0.9, 5.8), ("poly", [(0.9, 0.5), (5.7, 1.9), (0.9, 3.3)], True)],
+    "SIGN":     [("seg", 0.9, 0.3, 0.9, 5.8), ("poly", [(0.9, 0.5), (5.7, 1.9), (0.9, 3.3)], True),
+                 ("curve", 0.9, 3.3, 3.2, 3.6, 5.7, 1.9, "na")],
     # a bounded occurrence: the spark (four-point star)
-    "EVENT":    [("poly", [(3.0, 0.1), (3.9, 2.1), (5.9, 3.0), (3.9, 3.9), (3.0, 5.9), (2.1, 3.9), (0.1, 3.0), (2.1, 2.1)], False),
+    "EVENT":    [("curve", 3.0, 0.1, 3.3, 2.7, 5.9, 3.0, "na"), ("curve", 5.9, 3.0, 3.3, 3.3, 3.0, 5.9, "pie"),
+                 ("curve", 3.0, 5.9, 2.7, 3.3, 0.1, 3.0, "na"), ("curve", 0.1, 3.0, 2.7, 2.7, 3.0, 0.1, "pie"),
                  LOD, ("circle", 3.0, 3.0, 0.5, True)],
     # a collection: three members, one body
     "GROUP":    [("circle", 1.6, 1.8, 1.25, True), ("circle", 4.4, 1.8, 1.25, True), ("circle", 3.0, 4.3, 1.25, True),
                  LOD, ("seg", 1.6, 1.8, 4.4, 1.8), ("seg", 1.6, 1.8, 3.0, 4.3), ("seg", 4.4, 1.8, 3.0, 4.3)],
 }
 HEAD_POLYS: dict[str, list[Poly]] = {n: [op[1] for op in ops if op[0] == "poly"] for n, ops in HEADS.items()}
+HEAD_POLYS["PROCESS"] = [[(0.5, 0.3), (5.8, 3.0), (0.5, 5.7), (3.6, 3.0)]]
+HEAD_POLYS["AGENT"] = [[(0.4, 2.6), (3.0, 0.2), (5.6, 2.6), (5.6, 5.7), (0.4, 5.7)]]
+HEAD_POLYS["EVENT"] = [[(3.0, 0.1), (3.6, 2.4), (5.9, 3.0), (3.6, 3.6), (3.0, 5.9), (2.4, 3.6), (0.1, 3.0), (2.4, 2.4)]]
 # heads with interior room for argument seeds (left lobe / right lobe in local coords)
 LOBES: dict[str, tuple[tuple[float, float], tuple[float, float]]] = {
     "ENTITY": ((0.9, 2.0), (3.5, 2.0)), "PROPERTY": ((1.5, 2.0), (3.3, 2.0)), "RELATION": ((0.7, 2.0), (4.1, 2.0)),
@@ -271,6 +278,32 @@ class _Pen:
         else:  # plain
             self.d.line([(X0, Y0), (X1, Y1)], fill=ink, width=int(round(w)))
 
+    def curve(self, x0, y0, cx, cy, x1, y1, ink=None, w: float | None = None, kind: str = "pie") -> None:
+        """A bent stroke (quadratic Bézier) with the same modulation as a straight one."""
+        ink = ink or self.ink
+        w = float(w or self.w)
+        n = 14
+        pts, ts = [], []
+        for i in range(n + 1):
+            t = i / n
+            bx = (1 - t) ** 2 * x0 + 2 * (1 - t) * t * cx + t ** 2 * x1
+            by = (1 - t) ** 2 * y0 + 2 * (1 - t) * t * cy + t ** 2 * y1
+            pts.append(self.P(bx, by))
+            ts.append(t)
+        if kind == "pie":
+            half = [w * 0.5 * (1.0 - 0.6 * t) for t in ts]
+        elif kind == "na":
+            half = [w * 0.5 * (0.55 + 0.6 * t) for t in ts]
+        elif kind == "heng":
+            half = [w * 0.39 * (0.8 + 0.35 * t) for t in ts]
+        else:
+            half = [w * 0.5] * (n + 1)
+        self._band(pts, half, ink)
+        X, Y = pts[0]
+        self.d.ellipse([X - half[0], Y - half[0], X + half[0], Y + half[0]], fill=ink)
+        X, Y = pts[-1]
+        self.d.ellipse([X - half[-1], Y - half[-1], X + half[-1], Y + half[-1]], fill=ink)
+
     # legacy name used throughout: a stroke with automatic kind
     def seg(self, x0, y0, x1, y1, ink=None, w=None, dash=None, wedge=None) -> None:
         self.stroke(x0, y0, x1, y1, ink, w, None, dash)
@@ -380,6 +413,9 @@ class _Pen:
                 self.arc(ox + op[1] * scale, oy + op[2] * scale, op[3] * scale, op[4], op[5], ink, w)
             elif k == "pie":
                 self.pie(ox + op[1] * scale, oy + op[2] * scale, op[3] * scale, op[4], op[5], ink)
+            elif k == "curve":
+                self.curve(ox + op[1] * scale, oy + op[2] * scale, ox + op[3] * scale, oy + op[4] * scale,
+                           ox + op[5] * scale, oy + op[6] * scale, ink, w, op[7])
 
 
 def _form(member: int) -> list[Seg]:
@@ -580,8 +616,16 @@ def draw_char(draw: ImageDraw.ImageDraw, comp: Composition | None, x: float, y: 
     if part == 1:
         # second character of a compound: the head as a seed, centred, so the character keeps its identity
         pen.ops(SEEDS[hname], cx - 1.3, cy - 1.3, 1.3, C["dim"], pen.w * 0.8, detail=False)
+    elif fillmode == "full":
+        for pg in HEAD_POLYS[hname]:
+            pen.poly(pg, hx0, hy0, k, ink, fill=True)
+        for op in HEADS[hname]:
+            if op[0] == "circle":
+                pen.circle(hx0 + op[1] * k, hy0 + op[2] * k, op[3] * k, ink, fill=True)
+            if op[0] == "lod":
+                break
     else:
-        pen.ops(HEADS[hname], hx0, hy0, k, ink, hw, d, fill_all=(fillmode == "full"), detail=detail)
+        pen.ops(HEADS[hname], hx0, hy0, k, ink, hw, d, detail=detail)
         if fillmode == "half":
             for i in range(3):
                 yy = hy0 + side * (0.6 + i * 0.13)
@@ -922,18 +966,17 @@ def word_chars(comp: Composition) -> list[tuple]:
 # Literal characters: numbers, names, times, units, references
 # ---------------------------------------------------------------------------
 
-def _digit_segs(d: int) -> list[Seg]:
-    """Cuneiform-style digit in a 3×3 cell: d wedges, stacked in rows of three; 0 = box."""
+def _draw_digit(pen: _Pen, d: int, x: float, y: float, sc: float, ink) -> None:
+    """Cuneiform-style digit in a 3×3 cell: d verticals in rows of three, 0 a ring."""
     if d == 0:
-        return FORMS[11]
-    segs: list[Seg] = []
+        pen.circle(x + 1.5 * sc, y + 1.5 * sc, 0.9 * sc, ink, pen.w * 0.8)
+        return
     for i in range(d):
         row, col = divmod(i, 3)
         n_in_row = min(3, d - row * 3)
-        x = 0.5 + col * 1.0 + (3 - n_in_row) * 0.5
-        y0 = 0.1 + row * 1.0
-        segs.append((x, y0, x, y0 + 0.8))
-    return segs
+        cx = x + (0.5 + col * 1.0 + (3 - n_in_row) * 0.5) * sc
+        y0 = y + (0.1 + row * 1.0) * sc
+        pen.stroke(cx, y0, cx, y0 + 0.85 * sc, ink, pen.w * 0.9, "shu")
 
 
 def draw_numeral(draw: ImageDraw.ImageDraw, value: float | int, x: float, y: float, st: CharStyle) -> int:
@@ -952,18 +995,17 @@ def draw_numeral(draw: ImageDraw.ImageDraw, value: float | int, x: float, y: flo
     cells = 0
     for gi, g in enumerate(groups):
         pen = _Pen(draw, x + cells * (st.cell + st.gap * st.cell), y, u, C["ink"], st)
-        # frame line under the digits marks a numeral character (NUM marker)
-        pen.seg(1, 15.5, 16, 15.5, w=max(1, pen.w // 2))
+        pen.stroke(1.0, 15.2, 16.0, 15.2, C["ink"], pen.w * 0.9, "heng")     # numeral baseline
         if gi == 0 and neg:
-            pen.seg(1, 2, 3, 2)
-        cx = 1.5
+            pen.stroke(1.0, 3.0, 3.4, 3.0, C["ink"], None, "heng")
+        cx = 1.2
         for ch in g:
             if ch == ".":
-                pen.segs(FORMS[11], cx + 0.8, 11.5, 0.6)
-                cx += 1.8
+                pen.dot(cx + 0.6, 13.6, 0.4, C["ink"])
+                cx += 1.6
                 continue
-            pen.segs(_digit_segs(int(ch)), cx - 0.3, 4.5, 1.6, w=max(1, pen.w))
-            cx += 4.0
+            _draw_digit(pen, int(ch), cx, 4.6, 1.5, C["ink"])
+            cx += 3.9
         cells += 1
     return cells
 
@@ -1107,15 +1149,17 @@ def draw_literal(draw: ImageDraw.ImageDraw, kind: str, payload: Any, x: float, y
 
 
 def _binding_marker(draw: ImageDraw.ImageDraw, path: str, x: float, y: float, st: CharStyle) -> None:
-    """Between a word and its literal: the role's form (which slot the literal fills)."""
+    """Between a word and its literal: a light tie carrying the role's seed
+    (the head kind is not known here, so the tie shows the role by column
+    position on a small rule: ARG0..GOAL left to right)."""
     C = THEMES[st.theme]
     u = st.cell / GRID
     pen = _Pen(draw, x, y, u, C["clay"], st)
+    pen.stroke(2.5, 8.5, 6.0, 8.5, C["clay"], pen.w * 0.6, "heng")
     code = _role_code_of_path(path)
-    if code is None:
-        pen.seg(3, 8.5, 6, 8.5, w=max(1, pen.w // 2))
-    else:
-        pen.segs(_form(code - 1), 3, 7, 1.0, C["clay"], max(1, pen.w // 2))
+    if code is not None:
+        col = (code - 1) % 6
+        pen.dot(2.6 + col * 0.65, 7.2, 0.28, C["clay"])
 
 
 # ---------------------------------------------------------------------------
@@ -1151,7 +1195,7 @@ def draw_word(draw: ImageDraw.ImageDraw, comp: Composition, x: float, y: float, 
         u = st.cell / GRID
         n = len(chars)
         x1 = x + n * st.cell + (n - 1) * st.gap * st.cell
-        draw.line([(x + u * 0.6, y + HEADLINE_Y * u), (x1 - u * 0.6, y + HEADLINE_Y * u)], fill=C["ink"], width=max(1, int(st.weight * u * 0.8)))
+        draw.line([(x + u * 0.6, y + HEADLINE_Y * u), (x1 - u * 0.6, y + HEADLINE_Y * u)], fill=C["dim"], width=max(1, int(st.weight * u * 0.5)))
     for i, (c, depth, part, plan, roles) in enumerate(chars):
         draw_char(draw, c, x, y, st, depth, part=part, pl_override=plan, roles_override=roles)
         x += step

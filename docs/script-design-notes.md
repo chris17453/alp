@@ -170,9 +170,15 @@ connector are sized from and placed on the head/enclosure edge; ink budget
 character, surroundings and role row in the second, head shown as a seed);
 inner marks scale with the head; word headline.
 
-Open: curved heads (9), radical-position variant (7), demoting the headline
-(10), and the literal characters (numerals, units) which still use the old
-form alphabet.
+Also done: curved strokes in the heads (PROCESS, AGENT, SIGN, EVENT carry
+bent 撇/捺 strokes; PLACE, MOMENT, GROUP are circular); numerals and literal
+ties redrawn on the stroke set; the headline demoted to a light word-join.
+
+Settled by decision: the radical-position variant (7) is not implemented —
+the ink budget's compound split covers the heavy-character case with a fixed,
+learnable order, and keeping the head large keeps category legible at line
+scanning distance, which matters more for an audit script than for one meant
+to be read fluently.  Revisit if a font is cut.
 
 ## Order of work
 
