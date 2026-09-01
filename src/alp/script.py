@@ -61,15 +61,18 @@ Poly = list[tuple[float, float]]
 LOD = ("lod",)
 HEADS: dict[str, list[tuple]] = {
     # a thing that persists: the square, doubled at the corners like a stamped block
-    "ENTITY":   [("poly", [(0.4, 0.4), (5.6, 0.4), (5.6, 5.6), (0.4, 5.6)], False),
-                 LOD, ("seg", 0.4, 3.0, 1.6, 3.0), ("seg", 4.4, 3.0, 5.6, 3.0)],
+    # a thing that persists: a solid block seen slightly from above (front face + top face)
+    "ENTITY":   [("poly", [(0.4, 1.6), (4.4, 1.6), (4.4, 5.7), (0.4, 5.7)], False),
+                 ("poly", [(0.4, 1.6), (1.7, 0.3), (5.7, 0.3), (4.4, 1.6)], False),
+                 ("seg", 5.7, 0.3, 5.7, 4.4), ("seg", 4.4, 5.7, 5.7, 4.4)],
     # something that unfolds: a bold chevron band pointing forward
     "PROCESS":  [("curve", 0.5, 0.3, 4.6, 1.0, 5.8, 3.0, "na"), ("curve", 5.8, 3.0, 4.6, 5.0, 0.5, 5.7, "pie"),
                  ("curve", 0.5, 1.4, 2.6, 2.0, 3.6, 3.0, "na"), ("curve", 3.6, 3.0, 2.6, 4.0, 0.5, 4.6, "pie"),
                  LOD, ("seg", 0.5, 3.0, 1.6, 3.0)],
     # an attribute borne: the lozenge with its centre
+    # an attribute borne by something: the lozenge with its axis (a facet, a value)
     "PROPERTY": [("poly", [(3.0, 0.2), (5.8, 3.0), (3.0, 5.8), (0.2, 3.0)], False),
-                 LOD, ("circle", 3.0, 3.0, 0.55, True)],
+                 LOD, ("seg", 3.0, 1.6, 3.0, 4.4)],
     # a tie between things: the hourglass with a knot
     "RELATION": [("poly", [(0.4, 0.4), (5.6, 0.4), (0.4, 5.6), (5.6, 5.6)], False),
                  LOD, ("circle", 3.0, 3.0, 0.6, True)],
@@ -81,8 +84,9 @@ HEADS: dict[str, list[tuple]] = {
                  ("seg", 0.4, 2.6, 0.4, 5.7), ("seg", 5.6, 2.6, 5.6, 5.7), ("seg", 0.4, 5.7, 5.6, 5.7),
                  LOD, ("circle", 3.0, 3.0, 0.55, True), ("seg", 3.0, 3.7, 3.0, 5.0)],
     # a condition holding: the ring (octagon) with a level line
+    # a condition holding at a time: the vessel with its level
     "STATE":    [("poly", [(1.9, 0.3), (4.1, 0.3), (5.7, 1.9), (5.7, 4.1), (4.1, 5.7), (1.9, 5.7), (0.3, 4.1), (0.3, 1.9)], False),
-                 LOD, ("seg", 1.5, 3.0, 4.5, 3.0)],
+                 LOD, ("seg", 0.9, 4.0, 5.1, 4.0), ("seg", 1.6, 4.9, 4.4, 4.9)],
     # a location: the pin — a round head over a point
     "PLACE":    [("circle", 3.0, 2.3, 2.1, False), ("poly", [(1.55, 3.7), (4.45, 3.7), (3.0, 5.9)], True),
                  LOD, ("circle", 3.0, 2.3, 0.6, True)],
@@ -102,11 +106,12 @@ HEADS: dict[str, list[tuple]] = {
 }
 HEAD_POLYS: dict[str, list[Poly]] = {n: [op[1] for op in ops if op[0] == "poly"] for n, ops in HEADS.items()}
 HEAD_POLYS["PROCESS"] = [[(0.5, 0.3), (5.8, 3.0), (0.5, 5.7), (3.6, 3.0)]]
+HEAD_POLYS["ENTITY"] = [[(0.4, 1.6), (1.7, 0.3), (5.7, 0.3), (5.7, 4.4), (4.4, 5.7), (0.4, 5.7)]]
 HEAD_POLYS["AGENT"] = [[(0.4, 2.6), (3.0, 0.2), (5.6, 2.6), (5.6, 5.7), (0.4, 5.7)]]
 HEAD_POLYS["EVENT"] = [[(3.0, 0.1), (3.6, 2.4), (5.9, 3.0), (3.6, 3.6), (3.0, 5.9), (2.4, 3.6), (0.1, 3.0), (2.4, 2.4)]]
 # heads with interior room for argument seeds (left lobe / right lobe in local coords)
 LOBES: dict[str, tuple[tuple[float, float], tuple[float, float]]] = {
-    "ENTITY": ((0.9, 2.0), (3.3, 2.0)), "RELATION": ((0.55, 2.0), (4.05, 2.0)),
+    "ENTITY": ((0.8, 2.6), (2.5, 2.6)), "RELATION": ((0.55, 2.0), (4.05, 2.0)),
     "STATE": ((0.9, 2.0), (3.3, 2.0)), "AGENT": ((0.9, 3.0), (3.3, 3.0)),
 }
 LOBE_MIN_SIDE = 6.4
@@ -259,6 +264,9 @@ class _Pen:
             self._fill(ring(r), ink)
             return
         a = self.st.blend
+        if r > 1.8 * self.w:                       # a large fill: one layer, the feather softens its edge
+            self._fill(ring(r), ink, min(1.0, a * 1.15))
+            return
         for mult, alpha in ((1.45, a * 0.14), (1.1, a * 0.45), (0.65, a * 1.0)):
             self._fill(ring(r * mult), ink, alpha)
 
@@ -475,7 +483,7 @@ class _Pen:
         w = float(w or self.w)
         P = [self.P(ox + x * scale, oy + y * scale) for x, y in pts]
         if fill:
-            self._fill(P, ink)
+            self._fill(P, ink, min(1.0, self.st.blend * 1.15))
             return
         if dash:
             n = len(pts)
@@ -1431,6 +1439,21 @@ def render_text(words: Sequence[Utterance | Composition | None], st: CharStyle |
     return _down(img, S, st)
 
 
+DEMO_HEAD = {   # the head each modifier class is shown on: one that the class naturally qualifies
+    inv.CLASS_MODAL: "STATE", inv.CLASS_SCALAR: "QUANTITY", inv.CLASS_TEMPORAL: "EVENT",
+    inv.CLASS_CAUSAL: "RELATION", inv.CLASS_EPISTEMIC: "SIGN", inv.CLASS_ILLOCUTIONARY: "AGENT",
+    inv.CLASS_VALENCE: "PROPERTY", inv.CLASS_RELATIONAL: "RELATION", inv.CLASS_DEICTIC: "AGENT",
+    inv.CLASS_LOGICAL: "GROUP", inv.CLASS_AFFECT: "AGENT",
+}
+
+
+def demo(p: Pid) -> Composition:
+    """The chart/key character for a primitive: a head alone, or a class on its demo head."""
+    if p.cls == inv.CLASS_ONTOLOGICAL:
+        return Composition(p)
+    return Composition(inv.pid(DEMO_HEAD.get(p.cls, "ENTITY")), frozenset([p]))
+
+
 def render_key(st: CharStyle | None = None, font=None) -> Image.Image:
     """The glyph key, drawn with the character script itself: every primitive
     as the transformation it makes, beside its name, class and sense.  The
@@ -1459,13 +1482,7 @@ def render_key(st: CharStyle | None = None, font=None) -> Image.Image:
         if cls == 8:
             continue
         for p in inv.by_class(cls):
-            if cls == 0:
-                comp = Composition(p)
-            elif cls in (4, 9):
-                comp = Composition(inv.pid("RELATION"), frozenset([p]))
-            else:
-                comp = Composition(inv.pid("ENTITY"), frozenset([p]))
-            rows.append((cls, p, comp))
+            rows.append((cls, p, demo(p)))
     cell = st.cell
     line = cell + 10 * S
     col_w = 400 * S
@@ -1501,36 +1518,34 @@ def render_key(st: CharStyle | None = None, font=None) -> Image.Image:
 
 
 def render_chart(st: CharStyle | None = None) -> Image.Image:
-    """Design chart: the 12 heads bare, then every modifier class on an ENTITY head, then literals."""
+    """Design chart: the 12 heads; seeds; scaling rows; every modifier class on the head it suits; literals."""
     st = st or CharStyle(cell=80, frame=True)
     C = THEMES[st.theme]
-    heads = [Composition(p) for p in inv.by_class(inv.CLASS_ONTOLOGICAL)]
-    rows: list[list[Composition]] = [heads,
-                                     [Composition(inv.pid("ENTITY"), frozenset(), ((inv.ROLES["SCOPE"], p),)) for p in inv.by_class(inv.CLASS_ONTOLOGICAL)],
-                                     [Composition(inv.pid("ENTITY"), frozenset([inv.pid("LOW")]), ((inv.ROLES["SCOPE"], p), (inv.ROLES["TIME"], p))) for p in inv.by_class(inv.CLASS_ONTOLOGICAL)],
-                                     [Composition(p, frozenset([inv.pid("LOW")])) for p in inv.by_class(inv.CLASS_ONTOLOGICAL)],
-                                     [Composition(p, frozenset([inv.pid("NONE")])) for p in inv.by_class(inv.CLASS_ONTOLOGICAL)],
-                                     [Composition(p, frozenset([inv.pid("ALL")])) for p in inv.by_class(inv.CLASS_ONTOLOGICAL)]]
+    H = inv.by_class(inv.CLASS_ONTOLOGICAL)
+    rows: list[list[Composition]] = [
+        [Composition(p) for p in H],
+        [Composition(inv.pid("STATE"), frozenset(), ((inv.ROLES["SCOPE"], p),)) for p in H],
+        [Composition(p, frozenset([inv.pid("LOW")])) for p in H],
+        [Composition(p, frozenset([inv.pid("NONE")])) for p in H],
+        [Composition(p, frozenset([inv.pid("ALL")])) for p in H],
+    ]
     for cls in (inv.CLASS_MODAL, inv.CLASS_SCALAR, inv.CLASS_TEMPORAL, inv.CLASS_CAUSAL, inv.CLASS_EPISTEMIC,
                 inv.CLASS_ILLOCUTIONARY, inv.CLASS_VALENCE, inv.CLASS_RELATIONAL, inv.CLASS_DEICTIC,
                 inv.CLASS_LOGICAL, inv.CLASS_AFFECT):
-        head = "RELATION" if cls in (inv.CLASS_CAUSAL, inv.CLASS_RELATIONAL) else "ENTITY"
-        rows.append([Composition(inv.pid(head), frozenset([p])) for p in inv.by_class(cls)])
+        rows.append([demo(p) for p in inv.by_class(cls)])
     ncol = max(len(r) for r in rows)
-    gap = int(st.cell * 0.25)
-    extra = 1
-    img = Image.new("RGB", (ncol * (st.cell + gap) + gap, (len(rows) + extra) * (st.cell + gap) + gap), C["bg"])
-    d = ImageDraw.Draw(img)
+    hs, S = _hi(st)
+    gap = int(hs.cell * 0.25)
+    img, d = _canvas(ncol * (hs.cell + gap) + gap, (len(rows) + 1) * (hs.cell + gap) + gap, C["bg"])
     for r, row in enumerate(rows):
         for c, comp in enumerate(row):
-            draw_char(d, comp, gap + c * (st.cell + gap), gap + r * (st.cell + gap), st)
-    # literal row: numerals 0-9, a cartouche, a seal, a unit, a time
-    y = gap + len(rows) * (st.cell + gap)
+            draw_char(d, comp, gap + c * (hs.cell + gap), gap + r * (hs.cell + gap), hs)
+    y = gap + len(rows) * (hs.cell + gap)
     x = gap
     for n in (0, 1, 2, 5, 9, 4200, -3.5):
-        x += (draw_numeral(d, n, x, y, st)) * (st.cell + gap)
-    draw_cartouche(d, "alice", x, y, st); x += st.cell + gap
-    draw_cartouche(d, "checkout", x, y, st); x += st.cell + gap
-    draw_seal(d, hashlib.sha256(b"x").digest(), x, y, st); x += st.cell + gap
-    draw_unit(d, "ms", x, y, st)
-    return img
+        x += (draw_numeral(d, n, x, y, hs)) * (hs.cell + gap)
+    draw_cartouche(d, "alice", x, y, hs); x += hs.cell + gap
+    draw_cartouche(d, "checkout", x, y, hs); x += hs.cell + gap
+    draw_seal(d, hashlib.sha256(b"x").digest(), x, y, hs); x += hs.cell + gap
+    draw_unit(d, "ms", x, y, hs)
+    return _down(img, S, st)

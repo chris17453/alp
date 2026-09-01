@@ -171,8 +171,7 @@ def _chart_into(d: SVGDraw, st: CharStyle) -> None:
     for cls in (inv.CLASS_MODAL, inv.CLASS_SCALAR, inv.CLASS_TEMPORAL, inv.CLASS_CAUSAL, inv.CLASS_EPISTEMIC,
                 inv.CLASS_ILLOCUTIONARY, inv.CLASS_VALENCE, inv.CLASS_RELATIONAL, inv.CLASS_DEICTIC,
                 inv.CLASS_LOGICAL, inv.CLASS_AFFECT):
-        head = "RELATION" if cls in (inv.CLASS_CAUSAL, inv.CLASS_RELATIONAL) else "ENTITY"
-        rows.append([Composition(inv.pid(head), frozenset([p])) for p in inv.by_class(cls)])
+        rows.append([script.demo(p) for p in inv.by_class(cls)])
     gap = int(st.cell * 0.25)
     for r, row in enumerate(rows):
         for c, comp in enumerate(row):
