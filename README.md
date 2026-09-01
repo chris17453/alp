@@ -31,6 +31,12 @@ it in its own way:
 | roles | ARG0 and ARG1 are seeds **inside the head's lobes**; other roles form a reduced row beneath, each seed with its role marker. A nested composition's own character follows (depth-first) — a composition is a short *word*, never a stack |
 | literals | **numbers** as wedge counts · **names** as cartouches with a visual hash of the name · **times**, **units**, **reference seals** — bound values written after the word they bind to |
 
+Zones are exclusive (crown row · head + enclosure + side radicals · ground
+row · role row), so strokes never cross except where crossing *is* the meaning
+(NEGATE).  Enclosures, crowns, ground marks, inner marks and connectors use
+arcs, circles and waves as well as straight strokes, so the classes are told
+apart by curvature too.
+
 `examples/output/root-cause.png` — *"deploy 4471 is the suspected cause of the outage"*:
 
 ![root cause](examples/output/root-cause.png)
@@ -38,6 +44,24 @@ it in its own way:
 A whole text is a few lines of characters (`examples/output/complex-script.png`):
 
 ![complex thoughts](examples/output/complex-script.png)
+
+## Transcribing a document
+
+```
+$ alp transcribe -f letter.txt -o out/
+letter: 10 utterances in 3 paragraphs -> out/
+```
+
+writes `letter-script.png` (script only), `letter-transcript.png/.pdf`
+(each paragraph as script, then every sentence with its tree and bound
+values), `letter.alpt` / `letter.alpb` (the stream) and
+`letter-transcript.txt`.  `examples/output/document-*` is the transcript of
+[`examples/document.txt`](examples/document.txt) — *"Hi, my name is Sally. I
+work on the payments team in Berlin. The server broke yesterday at 3:00 … I
+need a python script that restarts the service if the error rate rises above
+5%. Please send it to me before Friday. Thanks!"*:
+
+![document transcript](examples/output/document-transcript.png)
 
 ## What English becomes
 
@@ -101,6 +125,7 @@ and codepoint.
 | [`incident.alpb`](examples/output/incident.alpb) → [`incident.alpt`](examples/output/incident.alpt) → [`incident-conversation.png`](examples/output/incident-conversation.png) | A stream in binary, in text, and read as a conversation |
 | [`incident-audit.pdf`](examples/output/incident-audit.pdf), `incident-decoded.txt`, `incident-verify.txt`, `incident-stats.txt`, `incident-forks.txt`, `incident-archive-sid256.alpt` | Audit, ALP → English, hash/round-trip check, sizes, fork scan, SID-256 archive |
 | [`appendix-d.alpt`](examples/output/appendix-d.alpt) / `.alpb` / [`.pdf`](examples/output/appendix-d.pdf) / `.png` | The RFC's worked 23-event conversation with real hashes |
+| [`document-script.png`](examples/output/document-script.png), [`document-transcript.png`](examples/output/document-transcript.png) / `.pdf` / [`.txt`](examples/output/document-transcript.txt), `document.alpt` / `.alpb` | `alp transcribe` of an ordinary letter: greeting, self-introduction, incident, request |
 
 ## Install and run
 
@@ -109,6 +134,7 @@ uv sync
 uv run pytest                                          # 50 tests
 uv run alp translate "urgency is high" --stats         # English -> tree
 uv run alp render -f notes.txt --png notes.png         # English -> script   (--english, --style each|block, --cell N, --pdf)
+uv run alp transcribe -f letter.txt -o out/            # document -> script + transcript + stream
 uv run alp compose '$STATE.NEGATE.NOW.BAD :SCOPE $PROCESS' --png outage.png --cell 160
 uv run alp chart --png chart.png                       # the character chart
 uv run alp key --png key.png --svg glyphs.svg          # the key
@@ -135,7 +161,7 @@ uv run alp forks notes.alpb                            # §12.6 synonymy-fork ca
 | `alp.alpt` | ALP/T writer + parser, byte-identical round trip, SID/EID mismatch detection |
 | `alp.lexicon` | Structural near-duplicate scan for synonymy forks (§12.6) |
 | `alp.render` | Documents: running script, per-utterance rows, expanded blocks; PNG (Pillow) and PDF (reportlab) |
-| `alp.cli` | `translate encode decode export import verify render compose chart key forks lexicon stats inventory` |
+| `alp.cli` | `translate transcribe encode decode export import verify render compose chart key forks lexicon stats inventory` |
 
 ```python
 from alp import Composition, Translator, Stream, alpt, script
@@ -163,9 +189,12 @@ assert alpt.loads(alpt.dumps(s)).stream.to_bytes() == s.to_bytes()
 
 ## Known limits
 
-The translator is rule-based: complement clauses ("she told me that …"),
-coordination inside noun phrases and idioms produce lopsided trees; the
-leakage rate and the `reads:` line under each character show you when.  Read
-it as a front end for authoring, not as understanding.
+The translator is rule-based.  Relative clauses ("a script *that restarts the
+service*") take over the clause, complement clauses ("she told me that …") and
+coordination inside noun phrases produce lopsided trees, and the residue of
+greetings is thin.  The leakage rate and the `reads:` line under each
+character show you when.  Read it as a front end for authoring, not as
+understanding — the language and the script are the deliverable; the English
+front end is scaffolding.
 
 MIT licensed, like the specification.

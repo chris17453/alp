@@ -1,0 +1,42 @@
+# document — transcript
+
+Hi, my name is Sally.
+    c3f9a755  $SIGN.BEGIN.ACKNOWLEDGE.ADDRESSEE :ARG1 ($SIGN.MEMBER)
+    bound: ARG1="sally"
+    reads: a signal that is you, beginning, acknowledged whose patient is (a signal that is a member of) [gloss: "Hi, my name is Sally."]
+I work on the payments team in Berlin.
+    028d18a9  $PROCESS.DURATIVE :ARG2 ($ENTITY) :SCOPE ($AGENT.SELF) :LOC ($GROUP)
+    bound: ARG2="berlin"  LOC="payments"
+    reads: a process that is extended in time whose instrument is (a thing) over (an agent that is I/we) at (a group) [gloss: "I work on the payments team in Berlin."]
+
+The server broke yesterday at 3:00.
+    e20f7e08  $EVENT.NEGATE.PAST.BAD :ARG0 ($ENTITY) :TIME ($MOMENT)
+    bound: TIME={"t" "3:00"}
+    reads: an event that is negated (not holding), in the past, bad whose agent is (a thing) when (a moment) [gloss: "The server broke yesterday at 3:00."]
+Latency went above 800ms and the customers reported errors.
+    205a8419  $RELATION.ABOVE :ARG0 ($QUANTITY.DURATIVE) :ARG1 ($STATE :MEASURE ($QUANTITY))
+    bound: ARG1/MEASURE={"n" 800 "u" "ms"}
+    reads: a relation that is above whose agent is (a quantity that is extended in time) whose patient is (a state measured by (a quantity)) [gloss: "Latency went above 800ms and the customers reported errors."]
+    735b3f14  $SIGN.PAST.OBSERVED.ASSERT :ARG0 ($AGENT) :ARG1 ($EVENT.BAD)
+    reads: a signal that is observed, in the past, asserted whose agent is (an agent) whose patient is (an event that is bad) [gloss: "Latency went above 800ms and the customers reported errors."]
+We suspect the deploy caused the outage, but nobody is sure.
+    eddb727e  $RELATION.PAST.CAUSE.INFERRED :ARG0 ($EVENT.PUNCTUAL) :ARG1 ($STATE.NEGATE.BAD)
+    reads: a relation that is inferred, in the past, causing whose agent is (an event that is instantaneous) whose patient is (a state that is negated (not holding), bad) [gloss: "We suspect the deploy caused the outage, but nobody is sure."]
+    e2c7e23b  $ENTITY.KNOWN
+    bound: .="nobody"
+    reads: a thing that is known [gloss: "We suspect the deploy caused the outage, but nobody is sure."]
+
+I need a python script that restarts the service if the error rate rises above 5%.
+    091bdce6  $PROCESS.REPEAT.BEGIN :ARG0 ($AGENT.SELF) :ARG1 ($PROCESS.DURATIVE :SCOPE ($SIGN)) :CONDITION ($RELATION.ABOVE :ARG0 ($QUANTITY.DURATIVE :SCOPE ($EVENT.BAD)) :ARG1 ($STATE :MEASURE ($QUANTITY)))
+    bound: CONDITION/ARG1/MEASURE={"n" 5 "u" "%"}  ARG1/SCOPE="python"
+    reads: a process that is recurring, beginning whose agent is (an agent that is I/we) whose patient is (a process that is extended in time over (a signal)) given (a relation that is above whose agent is (a quantity that is extended in time over (an event that is bad)) whose patient is (a state measured by (a quantity))) [gloss: "I need a python script that restarts the service if the error rate rises above 5%."]
+Please send it to me before Friday.
+    20a920ca  $PROCESS.PUNCTUAL.REQUEST :ARG1 ($ENTITY.THAT) :TIME ($MOMENT) :GOAL ($AGENT.SELF)
+    bound: TIME="friday"
+    reads: a process that is instantaneous, requested whose patient is (a thing that is that) when (a moment) to (an agent that is I/we) [gloss: "Please send it to me before Friday."]
+Thanks!
+    6e28f15f  $SIGN.ACKNOWLEDGE.BENEFIT.ADDRESSEE
+    reads: a signal that is you, beneficial, acknowledged [gloss: "Thanks!"]
+
+10 clauses, 5 fully composed from primitives, 6 names bound as data, 0 residue tokens, English leakage 9.8%
+english 347 B -> ALP/B 4719 B (SID-128, 22 events)

@@ -47,3 +47,7 @@ $A export $OUT/incident.alpb --archive -o $OUT/incident-archive-sid256.alpt
 uv run python examples/build_conversation.py --alpb $OUT/appendix-d.alpb --png $OUT/appendix-d.png --pdf $OUT/appendix-d.pdf > $OUT/appendix-d.alpt
 
 ls $OUT | wc -l
+
+# 6. a document transcript: script, script+English, ALP/T, ALP/B, text
+$A transcribe -f examples/document.txt -o $OUT --name document --clock 1788186000 --cell 56 --title "document — transcript" > $OUT/document-transcribe.log
+ls $OUT | wc -l

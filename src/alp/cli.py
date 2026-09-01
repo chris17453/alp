@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -412,6 +413,55 @@ def cmd_key(args) -> int:
     return 0
 
 
+def cmd_transcribe(args) -> int:
+    """English document -> transcript: script images, ALP/T, ALP/B stream, text transcript."""
+    text = _read_text(args)
+    tr = _translator(args)
+    out = Path(args.out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    stem = args.name or (Path(args.file).stem if args.file and args.file != "-" else "transcript")
+    paragraphs: list = []
+    for block in re.split(r"\n\s*\n", text.strip()):
+        para = []
+        for sent in split_sentences(block):
+            para.append((sent, tr.translate(sent)))
+        if para:
+            paragraphs.append(para)
+    all_tr = [t for para in paragraphs for _, trs in para for t in trs]
+    title = args.title or stem
+    theme = _theme(args)
+    # images
+    doc = render.doc_for_transcript(paragraphs, title=title, theme=theme, cell=args.cell, english=False)
+    render.save_png(doc, str(out / f"{stem}-script.png"), theme=theme)
+    doc_en = render.doc_for_transcript(paragraphs, title=title, theme=theme, cell=args.cell, english=True)
+    render.save_png(doc_en, str(out / f"{stem}-transcript.png"), theme=theme)
+    render.save_pdf(doc_en, str(out / f"{stem}-transcript.pdf"), title=title, theme="light")
+    # stream
+    s = _build_stream(all_tr, args.author, args.profile, args.stream or stem, args.clock, checkpoint=True, values=True)
+    (out / f"{stem}.alpb").write_bytes(s.to_bytes())
+    (out / f"{stem}.alpt").write_text(alpt.dumps(s), encoding="utf-8")
+    # text transcript: English | tree | bound | reading
+    lines = [f"# {title}", ""]
+    for para in paragraphs:
+        for src, trs in para:
+            lines.append(src)
+            for t in trs:
+                lines.append(f"    {t.composition.sid_hex(8)}  {t.composition.transliterate(8)}")
+                if t.value is not True:
+                    lines.append(f"    bound: " + "  ".join(f"{k}={alpt.fmt_term(v)}" for k, v in t.value["bind"].items()))
+                lines.append(f"    reads: {t.composition.reading()}")
+                if t.unconsumed:
+                    lines.append(f"    residue: {' '.join(t.unconsumed)}")
+        lines.append("")
+    st = stats(all_tr)
+    lines.append(st.summary())
+    lines.append(f"english {len(text.encode())} B -> ALP/B {len(s.to_bytes())} B ({s.profile}, {len(s)} events)")
+    (out / f"{stem}-transcript.txt").write_text("\n".join(lines), encoding="utf-8")
+    print(f"{stem}: {len(all_tr)} utterances in {len(paragraphs)} paragraphs -> {out}/")
+    print(st.summary())
+    return 0
+
+
 def cmd_chart(args) -> int:
     theme = _theme(args)
     doc = render.doc_for_chart(theme)
@@ -589,6 +639,18 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--svg", help="write the raw glyph sheet as SVG")
     image_outputs(sp)
     sp.set_defaults(func=cmd_key)
+
+    sp = sub.add_parser("transcribe", help="English document -> transcript directory (script PNG/PDF, ALP/T, ALP/B, text)")
+    text_inputs(sp)
+    translator_opts(sp)
+    sp.add_argument("-o", "--out-dir", default="transcript", help="output directory")
+    sp.add_argument("--name", help="file stem (default: input file name)")
+    sp.add_argument("--author", default="a000")
+    sp.add_argument("--profile", type=_profile, default=16)
+    sp.add_argument("--stream", help="stream id seed")
+    sp.add_argument("--clock", type=int)
+    image_outputs(sp)
+    sp.set_defaults(func=cmd_transcribe)
 
     sp = sub.add_parser("chart", help="the character chart: heads, every modifier as a transformation, literals")
     image_outputs(sp)

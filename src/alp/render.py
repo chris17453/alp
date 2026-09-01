@@ -737,6 +737,39 @@ def doc_for_stream(stream, title: str | None = None, alpt_text: str | None = Non
     return doc
 
 
+def doc_for_transcript(paragraphs: Sequence[Sequence], title: str | None = None, theme: str = "dark",
+                       cell: int = 56, english: bool = True) -> Doc:
+    """A transcript of an English document.
+
+    ``paragraphs`` is a list of paragraphs; each paragraph a list of
+    (source_sentence, [Translation, ...]).  Each paragraph renders as running
+    script; with ``english`` the sentences and their trees follow, so a reader
+    can check every character against its source."""
+    from .alpt import fmt_term
+    doc: Doc = []
+    if title:
+        doc.append(Heading(title, 1))
+    for pi, para in enumerate(paragraphs):
+        words: list = []
+        for src, trs in para:
+            for t in trs:
+                words.append((t.composition, t.value))
+        if not words:
+            continue
+        doc.append(Chars(words, cell=cell, theme=theme))
+        if english:
+            for src, trs in para:
+                doc.append(Para(src))
+                for t in trs:
+                    line = f"  {t.composition.sid_hex(8)}  {t.composition.transliterate(8)}"
+                    if t.value is not True:
+                        line += f"   ← {fmt_term(t.value)}"
+                    doc.append(Para(line, mono=True, dim=True))
+        if pi < len(paragraphs) - 1:
+            doc.append(Rule())
+    return doc
+
+
 def doc_for_chart(theme: str = "dark") -> Doc:
     """The character chart: heads, then every modifier class as a transformation of one head, then literals."""
     from . import script

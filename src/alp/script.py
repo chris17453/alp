@@ -102,20 +102,34 @@ FORMS: list[list[Seg]] = [
     [(1, 1, 2, 1), (2, 1, 2, 2), (2, 2, 1, 2), (1, 2, 1, 1)],
 ]
 
-# Scalar: how the head is scaled / filled  (name -> (scale, fill))
-SCALAR_SHAPE = {
-    "NONE": (0.55, "hollow"), "SOME": (1.0, "half"), "ALL": (1.0, "full"),
-    "LOW": (0.72, None), "MID": (1.0, None), "HIGH": (1.18, None), "EXTREME": (1.3, "double"),
-    "BOUNDED": (1.0, "brackets"), "UNBOUNDED": (1.0, "open"), "INCREASE": (1.0, "rise"), "DECREASE": (1.0, "fall"),
-}
 # Epistemic: how the head is stroked  (weight multiplier, dash pattern)
 EPISTEMIC_STROKE = {
     "KNOWN": (1.7, None), "BELIEVED": (1.0, None), "INFERRED": (1.0, "dash"), "UNKNOWN": (1.0, "dot"),
     "CONTESTED": (1.0, "double"), "OBSERVED": (1.0, "eye"), "PREDICTED": (1.0, "ahead"),
 }
 
-BASE = 8.0            # head box side at scale 1, in grid units
-CX = 9.0              # head centre x (room for the left radical)
+BASE = 7.0            # head box side at scale 1, in grid units
+CX = 8.6              # head centre x (room for the left radical and the right connector)
+HEAD_CY = 8.0         # head centre y
+ENC_MARGIN = 1.1      # clearance between head and enclosure
+CROWN_Y = 1.9         # baseline of the crown zone (nothing else enters rows 0-2.6)
+GROUND_Y = 13.9       # the ground line (rows 13.2-14.8 are its zone)
+ROLE_Y = 15.3         # top of the role row (rows 15.2-17)
+ROLE_COLS = {         # fixed columns for the roles that live below the head; (col, underline)
+    0x03: (0, False), 0x0B: (0, True),    # ARG2 | SOURCE
+    0x04: (1, False), 0x09: (1, True),    # SCOPE | MANNER
+    0x05: (2, False), 0x0A: (2, True),    # MEASURE | PURPOSE
+    0x06: (3, False),                     # CONDITION
+    0x07: (4, False), 0x0C: (4, True),    # LOC | GOAL
+    0x08: (5, False),                     # TIME
+    0x01: (0, False), 0x02: (5, False),   # ARG0/ARG1 fall back here only when the head has no lobes
+}
+ROLE_COL_X = [2.3, 4.6, 6.9, 9.2, 11.5, 13.8]
+SCALAR_SHAPE = {
+    "NONE": (0.5, "hollow"), "SOME": (1.0, "half"), "ALL": (1.0, "full"),
+    "LOW": (0.72, None), "MID": (1.0, None), "HIGH": (1.15, None), "EXTREME": (1.15, "double"),
+    "BOUNDED": (1.0, "brackets"), "UNBOUNDED": (1.0, "open"), "INCREASE": (1.0, "rise"), "DECREASE": (1.0, "fall"),
+}
 
 
 @dataclass
@@ -167,8 +181,8 @@ class _Pen:
                 self.d.rectangle([X - h, Y - h, X + h, Y + h], fill=ink)
             else:
                 self.d.ellipse([X - h, Y - h, X + h, Y + h], fill=ink)
-        if (self.st.wedge if wedge is None else wedge) and L > 6.0 * w:
-            bw, bl = 1.3 * w, 2.3 * w
+        if (self.st.wedge if wedge is None else wedge) and L > 7.0 * w:
+            bw, bl = 1.05 * w, 1.9 * w
             px, py = -uy, ux
             self.d.polygon([(X0 - ux * h + px * bw, Y0 - uy * h + py * bw),
                             (X0 - ux * h - px * bw, Y0 - uy * h - py * bw),
@@ -186,6 +200,51 @@ class _Pen:
         for i in range(n):
             a = i * step + (step - seg_on) / 2
             self.seg(x0 + ux * a, y0 + uy * a, x0 + ux * (a + seg_on), y0 + uy * (a + seg_on), ink, w, None, False)
+
+    def arc(self, cx: float, cy: float, r: float, a0: float, a1: float, ink=None, w: int | None = None) -> None:
+        """Arc in degrees, screen orientation (0 = east, 90 = south)."""
+        ink = ink or self.ink
+        w = w or self.w
+        X, Y = self.P(cx, cy)
+        R = r * self.u
+        self.d.arc([X - R, Y - R, X + R, Y + R], a0, a1, fill=ink, width=w)
+
+    def circle(self, cx: float, cy: float, r: float, ink=None, w: int | None = None, fill: bool = False) -> None:
+        ink = ink or self.ink
+        X, Y = self.P(cx, cy)
+        R = r * self.u
+        if fill:
+            self.d.ellipse([X - R, Y - R, X + R, Y + R], fill=ink)
+        else:
+            self.d.ellipse([X - R, Y - R, X + R, Y + R], outline=ink, width=w or self.w)
+
+    def wave(self, x0: float, y: float, x1: float, amp: float = 0.5, n: int = 3, ink=None, w: int | None = None) -> None:
+        """A sine-ish wiggle from x0 to x1 at height y."""
+        ink = ink or self.ink
+        w = w or self.w
+        steps = n * 8
+        pts = []
+        for i in range(steps + 1):
+            t = i / steps
+            pts.append(self.P(x0 + (x1 - x0) * t, y + amp * math.sin(t * n * 2 * math.pi)))
+        self.d.line(pts, fill=ink, width=w, joint="curve")
+
+    def rounded_box(self, x0: float, y0: float, x1: float, y1: float, r: float, ink=None, w: int | None = None,
+                    dash: str | None = None, open_top: bool = False, corners_only: bool = False) -> None:
+        ink = ink or self.ink
+        w = w or self.w
+        # corner arcs
+        self.arc(x0 + r, y0 + r, r, 180, 270, ink, w)
+        self.arc(x1 - r, y0 + r, r, 270, 360, ink, w)
+        self.arc(x1 - r, y1 - r, r, 0, 90, ink, w)
+        self.arc(x0 + r, y1 - r, r, 90, 180, ink, w)
+        if corners_only:
+            return
+        if not open_top:
+            self.seg(x0 + r, y0, x1 - r, y0, ink, w, dash, wedge=False)
+        self.seg(x1, y0 + r, x1, y1 - r, ink, w, dash, wedge=False)
+        self.seg(x1 - r, y1, x0 + r, y1, ink, w, dash, wedge=False)
+        self.seg(x0, y1 - r, x0, y0 + r, ink, w, dash, wedge=False)
 
     def segs(self, segs: list[Seg], ox: float, oy: float, scale: float = 1.0, ink=None, w: int | None = None, dash=None) -> None:
         for x0, y0, x1, y1 in segs:
@@ -277,11 +336,18 @@ def draw_char(draw: ImageDraw.ImageDraw, comp: Composition | None, x: float, y: 
               depth: int = 0, overflow: list[Pid] | None = None, extra_roles: list | None = None) -> None:
     """Compose one character at (x, y).
 
-    With ``overflow``/``extra_roles`` this draws a continuation character:
-    the same head, faint, carrying only the spill-over modifiers / roles."""
+    Zones are exclusive so strokes never collide:
+        rows 0-2.6      crown (valence) and, at the far left, logical marks
+        rows 3-13       head box, its enclosure (modal), left radical (illocution, x 0.4-2.4),
+                        right connector (causal/relational, x 14.6-16.8), scalar tips at the enclosure corners
+        rows 13.2-14.8  ground line (temporal)
+        rows 15.2-17    role row (fixed columns) ; depth dots at the far left
+    Inside the head: deixis mark (upper band), ARG0/ARG1 seeds (middle band), affect mark (lower band).
+    """
     C = THEMES[st.theme]
     u = st.cell / GRID
     pen = _Pen(draw, x, y, u, C["ink"], st)
+    thin = max(1, int(round(pen.w * 0.6)))
     if st.grid:
         for i in range(GRID + 1):
             draw.line([(x + i * u, y), (x + i * u, y + st.cell)], fill=C["faint"], width=1)
@@ -302,26 +368,17 @@ def draw_char(draw: ImageDraw.ImageDraw, comp: Composition | None, x: float, y: 
         pl = _plan(comp)
         roles = list(comp.roles)
     hname = inv.name_of(comp.head)
+    ink = C["dim"] if continuation else C["ink"]
 
-    # -- geometry: head box ------------------------------------------------------
+    # -- head geometry ---------------------------------------------------------------
     scale, fillmode = 1.0, None
     if pl.scalar:
         scale, fillmode = SCALAR_SHAPE[inv.name_of(pl.scalar[0])]
     side = BASE * scale
-    has_crown = bool(pl.valence)
-    has_base = bool(pl.temporal)
-    # vertical placement: crown above, ground line below, role row at the bottom
-    top = 2.4 if has_crown else 1.2
-    bottom_reserved = (1.8 if has_base else 0.6) + (2.6 if _below_roles(comp, roles, hname, scale) else 0)
-    avail = GRID - top - bottom_reserved
-    if side > avail:
-        scale *= avail / side
-        side = avail
-    hx0 = CX - side / 2
-    hy0 = top + (avail - side) / 2
-    k = side / 6.0                                  # local 6×6 -> grid
+    hx0, hy0 = CX - side / 2, HEAD_CY - side / 2
+    k = side / 6.0
     wmul, dash = 1.0, None
-    for ep in pl.epistemic:                      # two epistemic marks combine: weight from one, texture from the other
+    for ep in pl.epistemic:
         w2, d2 = EPISTEMIC_STROKE[inv.name_of(ep)]
         wmul = max(wmul, w2)
         if d2 in ("dash", "dot") and dash not in ("dash", "dot"):
@@ -329,245 +386,307 @@ def draw_char(draw: ImageDraw.ImageDraw, comp: Composition | None, x: float, y: 
         elif dash is None:
             dash = d2
     hw = max(1, int(round(pen.w * wmul)))
-    ink = C["dim"] if continuation else C["ink"]
     polys, extra = HEADS[hname]
+    ep_names = {inv.name_of(e) for e in pl.epistemic}
 
-    # -- head ---------------------------------------------------------------------
+    # -- head ---------------------------------------------------------------------------
+    d = dash if dash in ("dash", "dot") else None
     if fillmode == "full":
         for pg in polys:
             pen.poly(pg, hx0, hy0, k, ink, fill=True)
     else:
-        d = dash if dash in ("dash", "dot") else None
         for pg in polys:
             pen.poly(pg, hx0, hy0, k, ink, hw, d)
         pen.segs(extra, hx0, hy0, k, ink, hw, d)
-        if dash == "double":
-            for pg in polys:
-                pen.poly(pg, hx0 + 0.55, hy0 + 0.55, k, C["dim"], max(1, hw // 2))
         if fillmode == "half":
             for i in range(3):
-                yy = hy0 + side * (0.62 + i * 0.12)
-                pen.seg(hx0 + side * 0.18, yy, hx0 + side * 0.82, yy, ink, max(1, hw // 2), wedge=False)
-        if fillmode == "double":
+                yy = hy0 + side * (0.6 + i * 0.13)
+                pen.seg(hx0 + side * 0.2, yy, hx0 + side * 0.8, yy, ink, thin, wedge=False)
+        if fillmode == "double" or "CONTESTED" in ep_names:
+            # concentric inner outline (never an offset shadow: those collide)
             for pg in polys:
-                pen.poly(pg, hx0 + 0.9 * k / (side / 6), hy0 + 0.9, k * 0.7, ink, max(1, hw // 2))
+                cx_, cy_ = hx0 + side / 2, hy0 + side / 2
+                inner = [(cx_ + (hx0 + px * k - cx_) * 0.62, cy_ + (hy0 + py * k - cy_) * 0.62) for px, py in pg]
+                pen.poly(inner, 0, 0, 1, ink, thin)
         if fillmode == "hollow":
-            pen.seg(hx0 + side / 2, hy0 + side / 2, hx0 + side / 2, hy0 + side / 2, ink, max(1, hw // 2))
-    ep_names = {inv.name_of(e) for e in pl.epistemic}
+            pen.circle(CX, HEAD_CY, 0.35, ink, fill=True)
     if "OBSERVED" in ep_names:
-        cx, cy = hx0 + side / 2, hy0 + side / 2
-        pen.segs(FORMS[11], cx - 1.5, cy - 1.5, 1.0, ink)
-    if "CONTESTED" in ep_names and dash != "double":
-        for pg in polys:
-            pen.poly(pg, hx0 + 0.55, hy0 + 0.55, k, C["dim"], max(1, hw // 2))
-    if "PREDICTED" in ep_names and dash != "ahead":
-        dash = "ahead"
-    if dash == "ahead":
-        cy = hy0 + side / 2
-        pen.seg(hx0 + side, cy, hx0 + side + 1.6, cy, ink, hw)
-        pen.seg(hx0 + side + 1.6, cy, hx0 + side + 0.8, cy - 0.8, ink, hw, wedge=False)
-        pen.seg(hx0 + side + 1.6, cy, hx0 + side + 0.8, cy + 0.8, ink, hw, wedge=False)
-    if fillmode == "brackets":
-        for sx, dx in ((hx0 - 0.9, 0.7), (hx0 + side + 0.9, -0.7)):
-            pen.seg(sx, hy0, sx, hy0 + side, ink, hw)
-            pen.seg(sx, hy0, sx + dx, hy0, ink, hw, wedge=False)
-            pen.seg(sx, hy0 + side, sx + dx, hy0 + side, ink, hw, wedge=False)
-    if fillmode == "open":
-        cy = hy0 + side / 2
-        pen.seg(hx0 - 2.2, cy, hx0, cy, ink, hw)
-        pen.seg(hx0 + side, cy, hx0 + side + 2.2, cy, ink, hw)
-    if fillmode in ("rise", "fall"):
-        yy = hy0 if fillmode == "rise" else hy0 + side
-        pen.seg(hx0 + side, yy, hx0 + side + 1.6, yy - 1.6 if fillmode == "rise" else yy + 1.6, ink, hw)
-        tip = (hx0 + side + 1.6, yy - 1.6 if fillmode == "rise" else yy + 1.6)
-        pen.seg(tip[0], tip[1], tip[0] - 1.2, tip[1], ink, hw, wedge=False)
-        pen.seg(tip[0], tip[1], tip[0], tip[1] + (1.2 if fillmode == "rise" else -1.2), ink, hw, wedge=False)
+        pen.circle(CX, HEAD_CY, 0.55, ink, thin)
+        pen.circle(CX, HEAD_CY, 0.18, ink, fill=True)
 
-    # -- negation: the slash across the head ---------------------------------------
+    # -- negation ---------------------------------------------------------------------------
     if pl.negate and not continuation:
-        pen.seg(hx0 - 0.4, hy0 + side + 0.4, hx0 + side + 0.4, hy0 - 0.4, ink, hw)
+        pen.seg(hx0 - 0.5, hy0 + side + 0.5, hx0 + side + 0.5, hy0 - 0.5, ink, hw)
 
-    # -- modal enclosure ------------------------------------------------------------
+    # -- enclosure (modal) : a rounded box with clearance ---------------------------------------
+    m = ENC_MARGIN
+    ex0, ey0, ex1, ey1 = hx0 - m, hy0 - m, hx0 + side + m, hy0 + side + m
     if pl.modal:
         mname = inv.name_of(pl.modal[0])
-        m = 1.0
-        ex0, ey0, ex1, ey1 = hx0 - m, hy0 - m, hx0 + side + m, hy0 + side + m
-        box = [(ex0, ey0), (ex1, ey0), (ex1, ey1), (ex0, ey1)]
-        thin = max(1, int(pen.w * 0.7))
+        r = 1.0
         if mname == "NECESSARY":
-            pen.poly(box, 0, 0, 1, ink, thin)
+            pen.rounded_box(ex0, ey0, ex1, ey1, r, ink, thin)
         elif mname == "POSSIBLE":
-            pen.poly(box, 0, 0, 1, ink, thin, "dash")
+            pen.rounded_box(ex0, ey0, ex1, ey1, r, ink, thin, dash="dash")
         elif mname == "HYPOTHETICAL":
-            L = 1.4
-            for (px, py, sx, sy) in ((ex0, ey0, 1, 1), (ex1, ey0, -1, 1), (ex1, ey1, -1, -1), (ex0, ey1, 1, -1)):
-                pen.seg(px, py, px + sx * L, py, ink, thin, wedge=False)
-                pen.seg(px, py, px, py + sy * L, ink, thin, wedge=False)
+            pen.rounded_box(ex0, ey0, ex1, ey1, 1.6, ink, thin, corners_only=True)
         elif mname == "PERMITTED":
-            pen.seg(ex0, ey0, ex0, ey1, ink, thin); pen.seg(ex0, ey1, ex1, ey1, ink, thin); pen.seg(ex1, ey1, ex1, ey0, ink, thin)
+            pen.rounded_box(ex0, ey0, ex1, ey1, r, ink, thin, open_top=True)
         elif mname == "FORBIDDEN":
-            pen.poly(box, 0, 0, 1, ink, thin)
-            pen.seg(ex0, ey0 - 0.9, ex1, ey0 - 0.9, ink, hw)
+            pen.rounded_box(ex0, ey0, ex1, ey1, r, ink, thin)
+            pen.seg(ex0 - 0.3, ey0, ex1 + 0.3, ey0, ink, hw, wedge=False)     # the lid
         elif mname == "DESIRED":
-            pen.poly(box, 0, 0, 1, ink, thin)
-            pen.segs(FORMS[11], ex1 - 2.2, ey0 - 0.9, 0.6, ink)
+            pen.rounded_box(ex0, ey0, ex1, ey1, r, ink, thin)
+            pen.circle(ex1 - 0.9, ey0 + 0.9, 0.3, ink, fill=True)
         elif mname == "AFFIRM":
-            pen.seg(ex0, ey1, ex1, ey1, ink, thin)
-        hx_enc0, hx_enc1, hy_enc0, hy_enc1 = ex0, ex1, ey0, ey1
-    else:
-        hx_enc0, hx_enc1, hy_enc0, hy_enc1 = hx0, hx0 + side, hy0, hy0 + side
+            pen.arc(CX, ey1 - 0.2, (ex1 - ex0) / 2 - 0.4, 20, 160, ink, thin)     # a smile of assent under the head
+    enc0, enc1 = (ex0, ex1)
+    ency0, ency1 = (ey0, ey1)
 
-    # -- valence crown --------------------------------------------------------------
+    # -- scalar tips at the enclosure's right corners ------------------------------------------
+    if fillmode == "brackets":
+        for sx, dx in ((enc0 - 0.5, 0.8), (enc1 + 0.5, -0.8)):
+            pen.seg(sx, ency0 + 0.5, sx, ency1 - 0.5, ink, hw, wedge=False)
+            pen.seg(sx, ency0 + 0.5, sx + dx, ency0 + 0.5, ink, hw, wedge=False)
+            pen.seg(sx, ency1 - 0.5, sx + dx, ency1 - 0.5, ink, hw, wedge=False)
+    if fillmode == "open":
+        pen.seg(enc0 - 1.6, HEAD_CY, enc0 - 0.2, HEAD_CY, ink, hw, wedge=False)
+        pen.seg(enc1 + 0.2, HEAD_CY, enc1 + 1.6, HEAD_CY, ink, hw, wedge=False)
+    if fillmode in ("rise", "fall"):
+        tx, ty = enc1 + 0.4, (ency0 - 0.2 if fillmode == "rise" else ency1 + 0.2)
+        dy = -1 if fillmode == "rise" else 1
+        pen.seg(tx, ty - dy * 1.4, tx + 1.4, ty, ink, hw, wedge=False)
+        pen.seg(tx + 1.4, ty, tx + 0.3, ty, ink, hw, wedge=False)
+        pen.seg(tx + 1.4, ty, tx + 1.4, ty - dy * 1.1, ink, hw, wedge=False)
+
+    # -- crown (valence), rows 0.4-2.6 ------------------------------------------------------------
     if pl.valence:
         v = inv.name_of(pl.valence[0])
-        cy = hy_enc0 - 0.9
-        cx0, cx1 = hx_enc0 + 0.5, hx_enc1 - 0.5
+        cx0, cx1 = enc0 + 0.6, enc1 - 0.6
         mid = (cx0 + cx1) / 2
+        cy = CROWN_Y
         if v == "GOOD":
-            pen.seg(cx0, cy, mid, cy - 1.3, ink, hw); pen.seg(mid, cy - 1.3, cx1, cy, ink, hw)
+            pen.arc(mid, cy + 1.2, (cx1 - cx0) / 2, 200, 340, ink, hw)
         elif v == "BAD":
-            pen.seg(cx0, cy - 1.3, mid, cy, ink, hw); pen.seg(mid, cy, cx1, cy - 1.3, ink, hw)
+            pen.arc(mid, cy - 1.4, (cx1 - cx0) / 2, 20, 160, ink, hw)
         elif v == "REQUIRED":
-            pen.seg(cx0, cy, cx1, cy, ink, hw); pen.seg(cx0, cy - 1.0, cx1, cy - 1.0, ink, hw)
+            pen.seg(cx0, cy - 0.5, cx1, cy - 0.5, ink, hw, wedge=False); pen.seg(cx0, cy + 0.5, cx1, cy + 0.5, ink, hw, wedge=False)
         elif v == "OPTIONAL":
             pen.seg(cx0, cy, cx1, cy, ink, hw, "dash")
         elif v == "SAFE":
-            pen.seg(cx0, cy - 0.6, cx1, cy - 0.6, ink, hw); pen.seg(cx0, cy - 0.6, cx0, cy + 0.6, ink, hw, wedge=False); pen.seg(cx1, cy - 0.6, cx1, cy + 0.6, ink, hw, wedge=False)
+            pen.seg(cx0, cy - 0.4, cx1, cy - 0.4, ink, hw, wedge=False)
+            pen.seg(cx0, cy - 0.4, cx0, cy + 0.7, ink, hw, wedge=False); pen.seg(cx1, cy - 0.4, cx1, cy + 0.7, ink, hw, wedge=False)
         elif v == "HARM":
-            n = 4
-            step = (cx1 - cx0) / n
-            for i in range(n):
-                a, b = cx0 + i * step, cx0 + (i + 0.5) * step
-                pen.seg(a, cy, b, cy - 1.3, ink, hw, wedge=False); pen.seg(b, cy - 1.3, a + step, cy, ink, hw, wedge=False)
+            pen.wave(cx0, cy, cx1, 0.6, 3, ink, hw)
         elif v == "COST":
-            pen.seg(cx0, cy, cx1, cy, ink, hw); pen.seg(cx0, cy, cx0, cy + 1.0, ink, hw, wedge=False)
+            pen.seg(cx0, cy, cx1, cy, ink, hw, wedge=False); pen.seg(cx0, cy - 0.7, cx0, cy + 0.7, ink, hw, wedge=False)
         elif v == "BENEFIT":
-            pen.seg(cx0, cy, cx1, cy, ink, hw); pen.seg(cx1, cy, cx1, cy - 1.2, ink, hw, wedge=False)
+            pen.seg(cx0, cy, cx1, cy, ink, hw, wedge=False); pen.seg(cx1, cy - 0.7, cx1, cy + 0.7, ink, hw, wedge=False)
+    for i, lg in enumerate(pl.logical[:2]):
+        _logic_mark(pen, inv.name_of(lg), 0.6 + i * 2.2, CROWN_Y, ink, thin)
 
-    # -- temporal ground line -------------------------------------------------------
-    role_y = None
+    # -- ground line (temporal), rows 13.2-14.8 ------------------------------------------------------
     if pl.temporal:
-        gy = hy_enc1 + 0.9
-        gx0, gx1 = hx_enc0 - 0.6, hx_enc1 + 0.6
-        for i, t in enumerate(pl.temporal):
-            tn = inv.name_of(t)
-            yy = gy + i * 1.1
-            dot = {"PAST": 0.12, "NOW": 0.5, "FUTURE": 0.88, "BEFORE": 0.2, "AFTER": 0.8, "DURING": 0.5}.get(tn)
+        gx0, gx1 = enc0 - 0.4, enc1 + 0.4
+        gy = GROUND_Y
+        names = [inv.name_of(t) for t in pl.temporal]
+        line = not (names == ["PUNCTUAL"])
+        if "DURATIVE" in names:
+            pen.seg(gx0, gy - 0.35, gx1, gy - 0.35, ink, hw, wedge=False); pen.seg(gx0, gy + 0.35, gx1, gy + 0.35, ink, hw, wedge=False)
+        elif "REPEAT" in names:
+            pen.wave(gx0, gy, gx1, 0.5, 3, ink, hw)
+        elif line:
+            pen.seg(gx0, gy, gx1, gy, ink, hw, wedge=False)
+        for tn in names:
+            dot = {"PAST": 0.1, "NOW": 0.5, "FUTURE": 0.9, "BEFORE": 0.22, "AFTER": 0.78, "DURING": 0.5}.get(tn)
             if tn == "PUNCTUAL":
-                pen.seg(CX, yy - 0.5, CX, yy + 0.5, ink, hw)
-            elif tn == "DURATIVE":
-                pen.seg(gx0, yy, gx1, yy, ink, hw); pen.seg(gx0, yy + 0.7, gx1, yy + 0.7, ink, hw)
-            elif tn == "REPEAT":
-                pen.seg(gx0, yy, gx1, yy, ink, hw)
-                for f in (0.3, 0.6):
-                    px = gx0 + (gx1 - gx0) * f
-                    pen.seg(px, yy - 0.7, px + 0.7, yy, ink, hw, wedge=False); pen.seg(px + 0.7, yy, px, yy + 0.7, ink, hw, wedge=False)
+                pen.seg(CX, gy - 0.8, CX, gy + 0.8, ink, hw, wedge=False)
             elif tn == "BEGIN":
-                pen.seg(gx0, yy, gx1, yy, ink, hw); pen.seg(gx0, yy - 0.9, gx0, yy + 0.9, ink, hw)
+                pen.seg(gx0, gy - 0.8, gx0, gy + 0.8, ink, hw, wedge=False)
             elif tn == "END":
-                pen.seg(gx0, yy, gx1, yy, ink, hw); pen.seg(gx1, yy - 0.9, gx1, yy + 0.9, ink, hw)
-            else:
-                pen.seg(gx0, yy, gx1, yy, ink, hw)
-                if tn in ("BEFORE", "AFTER", "DURING"):
-                    for f in ((0.65,) if tn == "BEFORE" else (0.35,) if tn == "AFTER" else (0.2, 0.8)):
-                        px = gx0 + (gx1 - gx0) * f
-                        pen.seg(px, yy - 0.9, px, yy + 0.9, ink, hw)
-                if dot is not None:
-                    px = gx0 + (gx1 - gx0) * dot
-                    pen.segs(FORMS[11], px - 1.5, yy - 1.5, 1.0, ink)
-        role_y = gy + len(pl.temporal) * 1.1 + 0.6
-    else:
-        role_y = hy_enc1 + 0.9
+                pen.seg(gx1, gy - 0.8, gx1, gy + 0.8, ink, hw, wedge=False)
+            if tn in ("BEFORE", "AFTER", "DURING"):
+                for f in ((0.62,) if tn == "BEFORE" else (0.38,) if tn == "AFTER" else (0.15, 0.85)):
+                    px = gx0 + (gx1 - gx0) * f
+                    pen.seg(px, gy - 0.8, px, gy + 0.8, ink, hw, wedge=False)
+            if dot is not None:
+                pen.circle(gx0 + (gx1 - gx0) * dot, gy, 0.42, ink, fill=True)
 
-    # -- illocutionary left radical -------------------------------------------------
+    # -- left radical (illocution), x 0.4-2.4 ------------------------------------------------------
     if pl.illoc:
         iname = inv.name_of(pl.illoc[0])
-        rx = 1.3
-        ry0, ry1 = hy_enc0, hy_enc1
-        if iname == "PROPOSE":
-            pen.seg(rx, ry0, rx, ry1, ink, hw, "dash")
-        else:
-            pen.seg(rx, ry0, rx, ry1, ink, hw)
+        rx = 1.2
+        ry0, ry1 = ency0 + 0.3, ency1 - 0.3
+        pen.seg(rx, ry0, rx, ry1, ink, hw, "dash" if iname == "PROPOSE" else None, wedge=False)
         if iname == "REQUEST":
-            pen.seg(rx, ry1, rx + 1.3, ry1, ink, hw, wedge=False)
+            pen.arc(rx + 0.9, ry1 - 0.9, 0.9, 0, 90, ink, hw)
         elif iname == "COMMIT":
-            pen.seg(rx + 1.1, ry0, rx + 1.1, ry1, ink, hw)
+            pen.seg(rx + 1.0, ry0, rx + 1.0, ry1, ink, hw, wedge=False)
         elif iname == "QUERY":
-            pen.seg(rx, ry0, rx + 1.3, ry0, ink, hw, wedge=False); pen.seg(rx + 1.3, ry0, rx + 1.3, ry0 + 1.3, ink, hw, wedge=False)
+            pen.arc(rx + 0.9, ry0 + 0.9, 0.9, 180, 360, ink, hw)
+            pen.seg(rx + 1.8, ry0 + 0.9, rx + 1.8, ry0 + 1.9, ink, hw, wedge=False)
         elif iname == "WARN":
-            pen.seg(rx, (ry0 + ry1) / 2, rx + 1.3, (ry0 + ry1) / 2, ink, hw, wedge=False)
+            pen.seg(rx - 0.8, (ry0 + ry1) / 2, rx + 0.8, (ry0 + ry1) / 2, ink, hw, wedge=False)
         elif iname == "REFUSE":
             pen.seg(rx - 0.9, (ry0 + ry1) / 2 + 1, rx + 0.9, (ry0 + ry1) / 2 - 1, ink, hw, wedge=False)
         elif iname == "ACKNOWLEDGE":
-            pen.seg(rx, ry1, rx + 0.7, ry1 + 0.7, ink, hw, wedge=False); pen.seg(rx + 0.7, ry1 + 0.7, rx + 1.6, ry1 - 0.6, ink, hw, wedge=False)
+            pen.seg(rx - 0.6, ry1 - 0.9, rx, ry1, ink, hw, wedge=False); pen.seg(rx, ry1, rx + 1.0, ry1 - 1.6, ink, hw, wedge=False)
+        elif iname == "ASSERT":
+            pen.circle(rx, ry0 - 0.1, 0.3, ink, fill=True)
 
-    # -- causal / relational connector on the right -----------------------------------
+    # -- connector (causal / relational), x 14.6-16.8 ----------------------------------------------
     conn = (pl.causal + pl.relational)[:1]
     if conn:
         cn = inv.name_of(conn[0])
-        cy = (hy_enc0 + hy_enc1) / 2
-        ax0, ax1 = hx_enc1 + 0.5, min(GRID - 0.6, hx_enc1 + 3.0)
-        def arrow(x0, x1, yy, back=False):
-            pen.seg(x0, yy, x1, yy, ink, hw)
-            tip, dirn = (x0, 1) if back else (x1, -1)
-            pen.seg(tip, yy, tip + dirn * 0.9, yy - 0.9, ink, hw, wedge=False); pen.seg(tip, yy, tip + dirn * 0.9, yy + 0.9, ink, hw, wedge=False)
-        if cn == "CAUSE":
-            arrow(ax0, ax1, cy)
-        elif cn == "ENABLE":
-            pen.seg(ax0, cy, ax1 - 0.9, cy, ink, hw, "dash"); arrow(ax1 - 1.0, ax1, cy)
-        elif cn == "PREVENT":
-            arrow(ax0, ax1, cy); pen.seg((ax0 + ax1) / 2, cy - 1.1, (ax0 + ax1) / 2, cy + 1.1, ink, hw)
-        elif cn == "CORRELATE":
-            arrow(ax0, ax1, cy); pen.seg(ax0, cy, ax0 + 0.9, cy - 0.9, ink, hw, wedge=False); pen.seg(ax0, cy, ax0 + 0.9, cy + 0.9, ink, hw, wedge=False)
-        elif cn == "DEPEND":
-            arrow(ax0, ax1, cy, back=True)
-        elif cn == "TRIGGER":
-            pen.seg(ax0, cy - 1.1, ax0, cy + 1.1, ink, hw); arrow(ax0, ax1, cy)
-        else:  # relational: the member's form, sitting on the right edge
-            pen.segs(_form(conn[0].member), ax0, cy - 1.5, 1.0, ink)
+        cy = HEAD_CY
+        ax0, ax1 = max(enc1 + 0.4, 14.4), 16.6
+        _connector(pen, cn, ax0, ax1, cy, ink, hw, thin)
 
-    # -- inner marks: deixis (upper), affect (lower), logical (upper-left outside) -------
-    if pl.deictic:
-        pen.segs(_form(pl.deictic[0].member), CX - 0.9, hy0 + side * 0.12, 0.6, ink)
-    if pl.affect:
-        pen.segs(_form(pl.affect[0].member), CX - 0.9, hy0 + side * 0.72, 0.6, ink)
-    for i, lg in enumerate(pl.logical):
-        pen.segs(_form(lg.member), 0.4 + i * 2.0, 0.2, 0.55, ink)
+    # -- inner marks --------------------------------------------------------------------------------------
+    inner_ok = scale >= 0.9 and fillmode not in ("full", "half") and not continuation
+    if pl.deictic and inner_ok:
+        _deictic_mark(pen, inv.name_of(pl.deictic[0]), CX, hy0 + side * 0.2, ink, thin)
+    if pl.affect and inner_ok:
+        _affect_mark(pen, inv.name_of(pl.affect[0]), CX, hy0 + side * 0.8, ink, thin)
 
-    # -- roles: ARG0/ARG1 inside the lobes when there is room, the rest in a row below ----
-    inside: dict[int, Node] = {}
-    below: list[tuple[int, Node]] = []
-    lob = LOBES.get(hname) if (scale >= 0.9 and fillmode not in ("full", "half") and not continuation) else None
+    # -- roles: lobes inside, fixed columns below -----------------------------------------------------
+    lob = LOBES.get(hname) if inner_ok else None
     for code, node in roles:
-        if lob is not None and code in (1, 2) and code not in inside:
-            inside[code] = node
-        else:
-            below.append((code, node))
-    if lob is not None:
-        for code, node in inside.items():
+        if lob is not None and code in (1, 2):
             lx, ly = lob[0 if code == 1 else 1]
-            _draw_seed(pen, node, hx0 + lx * k, hy0 + ly * k, max(0.7, k * 0.85), ink)
+            sx, sy = hx0 + lx * k, hy0 + ly * k
+            _draw_seed(pen, node, sx, sy, max(0.7, k * 0.85), ink)
             if isinstance(node, Composition):
-                pen.seg(hx0 + lx * k, hy0 + (ly + 2.4) * k, hx0 + (lx + 2) * k, hy0 + (ly + 2.4) * k, ink, max(1, hw // 2), wedge=False)
-    if below:
-        n = min(len(below), 4)
-        sw = 3.2
-        rx0 = CX - (n * sw) / 2
-        yy = max(role_y, GRID - 2.6)
-        yy = min(yy, GRID - 2.4)
-        for i, (code, node) in enumerate(below[:4]):
-            sx = rx0 + i * sw
-            _draw_seed(pen, node, sx, yy, 1.0, ink)
-            pen.segs(_form(code - 1), sx + 2.15, yy + 0.7, 0.33, ink, max(1, pen.w // 2))
-            if isinstance(node, Composition):
-                pen.seg(sx, yy - 0.5, sx + 2, yy - 0.5, ink, max(1, hw // 2), wedge=False)
+                pen.seg(sx, sy + 2.3 * k * 0.85, sx + 1.7, sy + 2.3 * k * 0.85, ink, thin, wedge=False)
+            continue
+        col, underline = ROLE_COLS.get(code, (3, False))
+        sx = ROLE_COL_X[col] - 0.9
+        _draw_seed(pen, node, sx, ROLE_Y, 0.9, ink)
+        if underline:
+            pen.seg(sx, ROLE_Y + 2.15, sx + 1.8, ROLE_Y + 2.15, ink, thin, wedge=False)
+        if isinstance(node, Composition):
+            pen.seg(sx, ROLE_Y - 0.45, sx + 1.8, ROLE_Y - 0.45, ink, thin, wedge=False)
 
     if continuation:
         return
+    if any(isinstance(m, Composition) for m in comp.modifiers):
+        pen.seg(enc0, ency1 + 0.3, enc1, ency1 + 0.3, C["dim"], thin, wedge=False)
     if comp.residue is not None:
-        pen.segs([(0, 1.6, 0.6, 0), (0.6, 0, 1.2, 1.6), (1.2, 1.6, 1.8, 0), (1.8, 0, 2.4, 1.6)], 0.6, GRID - 2.2, 1.0, C["dim"], max(1, pen.w // 2))
+        pen.wave(0.5, GRID - 1.0, 2.6, 0.35, 2, C["dim"], thin)
     for i in range(depth):
-        pen.seg(0.6 + i * 0.9, GRID - 0.6, 0.6 + i * 0.9, GRID - 0.6, ink)
+        pen.circle(0.8 + i * 0.9, GRID - 0.8, 0.22, ink, fill=True)
+
+
+def _connector(pen: _Pen, cn: str, ax0: float, ax1: float, cy: float, ink, hw: int, thin: int) -> None:
+    def arrow(x0, x1, yy, back=False):
+        pen.seg(x0, yy, x1, yy, ink, hw, wedge=False)
+        tip, dirn = (x0, 1) if back else (x1, -1)
+        pen.seg(tip, yy, tip + dirn * 0.9, yy - 0.9, ink, hw, wedge=False); pen.seg(tip, yy, tip + dirn * 0.9, yy + 0.9, ink, hw, wedge=False)
+    mid = (ax0 + ax1) / 2
+    if cn == "CAUSE":
+        arrow(ax0, ax1, cy)
+    elif cn == "ENABLE":
+        pen.seg(ax0, cy, ax1 - 1.0, cy, ink, hw, "dash"); arrow(ax1 - 1.0, ax1, cy)
+    elif cn == "PREVENT":
+        arrow(ax0, ax1, cy); pen.seg(mid, cy - 1.1, mid, cy + 1.1, ink, hw, wedge=False)
+    elif cn == "CORRELATE":
+        pen.seg(ax0 + 0.3, cy, ax1 - 0.3, cy, ink, hw, wedge=False)
+        for t, dirn in ((ax0 + 0.3, 1), (ax1 - 0.3, -1)):
+            pen.seg(t, cy, t + dirn * 0.8, cy - 0.8, ink, hw, wedge=False); pen.seg(t, cy, t + dirn * 0.8, cy + 0.8, ink, hw, wedge=False)
+    elif cn == "DEPEND":
+        arrow(ax0, ax1, cy, back=True)
+    elif cn == "TRIGGER":
+        pen.seg(ax0, cy - 1.1, ax0, cy + 1.1, ink, hw, wedge=False); arrow(ax0, ax1, cy)
+    elif cn == "EQUAL":
+        pen.seg(ax0, cy - 0.5, ax1, cy - 0.5, ink, hw, wedge=False); pen.seg(ax0, cy + 0.5, ax1, cy + 0.5, ink, hw, wedge=False)
+    elif cn == "GREATER":
+        pen.seg(ax0, cy - 1.0, ax1, cy, ink, hw, wedge=False); pen.seg(ax1, cy, ax0, cy + 1.0, ink, hw, wedge=False)
+    elif cn == "LESS":
+        pen.seg(ax1, cy - 1.0, ax0, cy, ink, hw, wedge=False); pen.seg(ax0, cy, ax1, cy + 1.0, ink, hw, wedge=False)
+    elif cn == "PART":
+        pen.arc(ax1, cy, 1.0, 90, 270, ink, hw)
+    elif cn == "HAS":
+        pen.arc(ax0, cy, 1.0, 270, 450, ink, hw)
+    elif cn == "MEMBER":
+        pen.arc(ax1, cy, 1.0, 90, 270, ink, hw); pen.seg(ax1 - 1.0, cy, ax1, cy, ink, hw, wedge=False)
+    elif cn == "NEAR":
+        pen.circle(mid - 0.6, cy, 0.35, ink, fill=True); pen.circle(mid + 0.6, cy, 0.35, ink, fill=True)
+    elif cn == "INSIDE":
+        pen.circle(mid, cy, 1.0, ink, thin); pen.circle(mid, cy, 0.3, ink, fill=True)
+    elif cn == "OUTSIDE":
+        pen.circle(mid - 0.3, cy, 0.9, ink, thin); pen.circle(ax1 - 0.1, cy - 0.9, 0.3, ink, fill=True)
+    elif cn == "ABOVE":
+        pen.seg(ax0, cy + 0.6, ax1, cy + 0.6, ink, hw, wedge=False); pen.circle(mid, cy - 0.5, 0.35, ink, fill=True)
+    elif cn == "BELOW":
+        pen.seg(ax0, cy - 0.6, ax1, cy - 0.6, ink, hw, wedge=False); pen.circle(mid, cy + 0.5, 0.35, ink, fill=True)
+    elif cn == "TOWARD":
+        pen.circle(ax0 + 0.3, cy, 0.35, ink, fill=True); arrow(ax0 + 0.8, ax1, cy)
+
+
+def _deictic_mark(pen: _Pen, name: str, cx: float, cy: float, ink, thin: int) -> None:
+    r = 0.55
+    if name == "SELF":
+        pen.circle(cx, cy, r, ink, thin); pen.circle(cx, cy, 0.2, ink, fill=True)
+    elif name == "ADDRESSEE":
+        pen.circle(cx - 0.4, cy, r, ink, thin); pen.seg(cx + 0.3, cy, cx + 1.3, cy, ink, thin, wedge=False)
+    elif name == "THIS":
+        pen.circle(cx - 0.6, cy, 0.25, ink, fill=True); pen.seg(cx - 0.1, cy, cx + 0.9, cy, ink, thin, wedge=False)
+    elif name == "THAT":
+        pen.seg(cx - 0.9, cy, cx + 0.2, cy, ink, thin, wedge=False); pen.circle(cx + 0.7, cy, 0.25, ink, fill=True)
+    elif name == "WHICH":
+        pen.arc(cx, cy - 0.1, 0.5, 200, 90, ink, thin); pen.circle(cx, cy + 0.9, 0.18, ink, fill=True)
+    elif name == "SAME":
+        pen.seg(cx - 0.8, cy - 0.3, cx + 0.8, cy - 0.3, ink, thin, wedge=False); pen.seg(cx - 0.8, cy + 0.3, cx + 0.8, cy + 0.3, ink, thin, wedge=False)
+    elif name == "OTHER":
+        pen.circle(cx - 0.6, cy, 0.25, ink, fill=True); pen.circle(cx + 0.6, cy, 0.4, ink, thin)
+    elif name == "EACH":
+        for dx in (-0.8, 0, 0.8):
+            pen.circle(cx + dx, cy, 0.22, ink, fill=True)
+    elif name == "ANY":
+        pen.circle(cx - 0.6, cy, 0.3, ink, thin); pen.circle(cx + 0.6, cy, 0.3, ink, thin)
+    elif name == "GENERIC":
+        pen.arc(cx, cy, 0.7, 0, 360, ink, thin); pen.seg(cx - 0.4, cy, cx + 0.4, cy, ink, thin, wedge=False)
+
+
+def _affect_mark(pen: _Pen, name: str, cx: float, cy: float, ink, thin: int) -> None:
+    if name == "JOY":
+        pen.arc(cx, cy - 0.5, 0.9, 20, 160, ink, thin)
+    elif name == "SADNESS":
+        pen.arc(cx, cy + 0.6, 0.9, 200, 340, ink, thin)
+    elif name == "FEAR":
+        pen.wave(cx - 1.0, cy, cx + 1.0, 0.3, 2, ink, thin)
+    elif name == "ANGER":
+        pen.seg(cx - 1.0, cy + 0.4, cx - 0.5, cy - 0.4, ink, thin, wedge=False); pen.seg(cx - 0.5, cy - 0.4, cx, cy + 0.4, ink, thin, wedge=False)
+        pen.seg(cx, cy + 0.4, cx + 0.5, cy - 0.4, ink, thin, wedge=False); pen.seg(cx + 0.5, cy - 0.4, cx + 1.0, cy + 0.4, ink, thin, wedge=False)
+    elif name == "TRUST":
+        pen.seg(cx - 0.9, cy, cx + 0.9, cy, ink, thin, wedge=False); pen.circle(cx, cy - 0.6, 0.2, ink, fill=True)
+    elif name == "SURPRISE":
+        pen.circle(cx, cy, 0.5, ink, thin)
+    elif name == "DISGUST":
+        pen.wave(cx - 1.0, cy + 0.2, cx + 1.0, 0.3, 1, ink, thin); pen.seg(cx - 1.0, cy - 0.5, cx + 1.0, cy - 0.5, ink, thin, wedge=False)
+    elif name == "CALM":
+        pen.arc(cx, cy + 3.0, 3.4, 250, 290, ink, thin)
+
+
+def _logic_mark(pen: _Pen, name: str, x: float, y: float, ink, thin: int) -> None:
+    if name == "AND":
+        pen.seg(x, y + 0.8, x + 0.6, y - 0.8, ink, thin, wedge=False); pen.seg(x + 0.6, y - 0.8, x + 1.2, y + 0.8, ink, thin, wedge=False)
+        pen.seg(x + 0.25, y + 0.2, x + 0.95, y + 0.2, ink, thin, wedge=False)
+    elif name == "OR":
+        pen.seg(x, y - 0.8, x + 0.6, y + 0.8, ink, thin, wedge=False); pen.seg(x + 0.6, y + 0.8, x + 1.2, y - 0.8, ink, thin, wedge=False)
+    elif name == "XOR":
+        pen.seg(x, y - 0.8, x + 0.6, y + 0.8, ink, thin, wedge=False); pen.seg(x + 0.6, y + 0.8, x + 1.2, y - 0.8, ink, thin, wedge=False)
+        pen.seg(x, y - 1.1, x + 1.2, y - 1.1, ink, thin, wedge=False)
+    elif name == "IFF":
+        pen.seg(x, y - 0.3, x + 1.4, y - 0.3, ink, thin, wedge=False); pen.seg(x, y + 0.3, x + 1.4, y + 0.3, ink, thin, wedge=False)
+        pen.seg(x, y - 0.3, x - 0.3, y, ink, thin, wedge=False); pen.seg(x + 1.4, y + 0.3, x + 1.7, y, ink, thin, wedge=False)
+    elif name == "IMPLIES":
+        pen.seg(x, y - 0.3, x + 1.2, y - 0.3, ink, thin, wedge=False); pen.seg(x, y + 0.3, x + 1.2, y + 0.3, ink, thin, wedge=False)
+        pen.seg(x + 1.2, y - 0.6, x + 1.7, y, ink, thin, wedge=False); pen.seg(x + 1.2, y + 0.6, x + 1.7, y, ink, thin, wedge=False)
+    elif name == "ONLY":
+        pen.circle(x + 0.6, y, 0.25, ink, fill=True); pen.seg(x, y - 0.8, x, y + 0.8, ink, thin, wedge=False); pen.seg(x + 1.2, y - 0.8, x + 1.2, y + 0.8, ink, thin, wedge=False)
+    elif name == "EXCEPT":
+        pen.circle(x + 0.6, y, 0.7, ink, thin); pen.seg(x + 0.9, y - 0.3, x + 1.6, y - 1.0, ink, thin, wedge=False)
 
 
 def _below_roles(comp: Composition, roles: list, hname: str, scale: float) -> bool:
@@ -582,11 +701,8 @@ def word_chars(comp: Composition) -> list[tuple[Composition, int, list | None, l
     def visit(c: Composition, depth: int) -> None:
         out.append((c, depth, None, None))
         pl = _plan(c)
-        lob = LOBES.get(inv.name_of(c.head))
-        below = [r for r in c.roles if not (lob is not None and r[0] in (1, 2))]
-        extra = below[4:]
-        if pl.overflow or extra:
-            out.append((c, depth, pl.overflow, extra))
+        if pl.overflow:
+            out.append((c, depth, pl.overflow, []))
         for m in c.modifiers:
             if isinstance(m, Composition):
                 visit(m, depth + 1)

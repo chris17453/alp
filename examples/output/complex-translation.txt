@@ -42,10 +42,10 @@ d11bddff  $ENTITY.NEGATE.QUERY.BAD.WHICH
           source:  Which server failed?
           reads:   a thing that is which?, negated (not holding), bad, queried [gloss: "Which server failed?"]
           script:  '\ue000\ue101\ue603\ue701\uea04'
-f9757ecd  $RELATION.PART :ARG1 ($SIGN.FUTURE.PROPOSE)
+c577bab0  $RELATION.PART :ARG0 ($ENTITY.THIS) :ARG1 ($SIGN.FUTURE.PROPOSE)
           source:  This is part of the plan, but nobody trusts the plan.
-          reads:   a relation that is part of whose patient is (a signal that is in the future, proposed) [gloss: "This is part of the plan, but nobody trusts the plan."]
-          script:  '\ue003\ue903\ue801\ue009\ue302\ue606\ue802'
+          reads:   a relation that is part of whose agent is (a thing that is this) whose patient is (a signal that is in the future, proposed) [gloss: "This is part of the plan, but nobody trusts the plan."]
+          script:  '\ue003\ue903\ue801\ue000\uea02\ue802\ue801\ue009\ue302\ue606\ue802'
 08752f87  $STATE.TRUST :ARG0 ($ENTITY) :ARG1 ($SIGN.FUTURE.PROPOSE)
           bound:   ARG0='nobody'
           source:  This is part of the plan, but nobody trusts the plan.

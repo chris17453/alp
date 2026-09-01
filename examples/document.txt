@@ -1,0 +1,7 @@
+Hi, my name is Sally. I work on the payments team in Berlin.
+
+The server broke yesterday at 3:00. Latency went above 800ms and the customers reported errors.
+We suspect the deploy caused the outage, but nobody is sure.
+
+I need a python script that restarts the service if the error rate rises above 5%.
+Please send it to me before Friday. Thanks!

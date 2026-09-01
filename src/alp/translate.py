@@ -164,6 +164,19 @@ HEAD_LEXICON: dict[str, tuple[str, list[str]]] = {
     "way": ("PROCESS", ["MANNER_"]) if False else ("PROCESS", []), "reason": ("RELATION", ["CAUSE"]), "choice": ("EVENT", ["OR", "COMMIT"]),
     "law": ("SIGN", ["REQUIRED", "ALL"]), "promise": ("SIGN", ["COMMIT"]), "lie": ("SIGN", ["NEGATE", "KNOWN"]), "secret": ("SIGN", ["FORBIDDEN"]),
     "hope": ("STATE", ["DESIRED", "FUTURE"]), "memory": ("SIGN", ["PAST"]), "pain": ("STATE", ["HARM"]), "joy": ("STATE", ["JOY"]),
+    "script": ("SIGN", ["PROCESS"]), "program": ("SIGN", ["PROCESS"]), "code": ("SIGN", ["PROCESS"]), "function": ("PROCESS", ["BOUNDED"]),
+    "app": ("SIGN", ["PROCESS"]), "application": ("SIGN", ["PROCESS"]), "website": ("SIGN", ["PLACE"]), "page": ("SIGN", []),
+    "email": ("SIGN", ["TOWARD"]), "call": ("SIGN", ["REQUEST"]), "meeting": ("EVENT", ["BOUNDED", "DURATIVE"]),
+    "help": ("PROCESS", ["BENEFIT"]), "work": ("PROCESS", ["DURATIVE"]), "job": ("PROCESS", ["BOUNDED"]),
+    "project": ("PROCESS", ["BOUNDED", "FUTURE"]), "feature": ("PROPERTY", ["GOOD"]), "version": ("SIGN", ["MEMBER"]),
+    "list": ("GROUP", ["SIGN"]), "table": ("GROUP", ["SIGN", "BOUNDED"]), "image": ("SIGN", ["OBSERVED"]), "picture": ("SIGN", ["OBSERVED"]),
+    "video": ("SIGN", ["OBSERVED", "DURATIVE"]), "sound": ("SIGN", ["OBSERVED"]), "book": ("SIGN", ["BOUNDED"]),
+    "example": ("SIGN", ["MEMBER"]), "answer": ("SIGN", ["ASSERT"]), "idea": ("SIGN", ["BELIEVED"]), "guess": ("SIGN", ["BELIEVED", "UNKNOWN"]),
+    "key": ("ENTITY", ["ENABLE"]), "password": ("SIGN", ["FORBIDDEN"]), "account": ("ENTITY", ["SIGN", "MEMBER"]),
+    "user": ("AGENT", []), "developer": ("AGENT", ["PROCESS"]), "boss": ("AGENT", ["EXTREME"]), "friend": ("AGENT", ["TRUST"]),
+    "morning": ("MOMENT", ["BEGIN"]), "night": ("MOMENT", ["END"]), "today": ("MOMENT", ["NOW"]), "tomorrow": ("MOMENT", ["FUTURE"]),
+    "yesterday": ("MOMENT", ["PAST"]), "minute": ("MOMENT", ["BOUNDED", "LOW"]), "second": ("MOMENT", ["BOUNDED", "PUNCTUAL"]),
+    "month": ("MOMENT", ["BOUNDED"]), "year": ("MOMENT", ["BOUNDED", "DURATIVE"]),
 }
 
 # Verbs that become the clause predicate: word -> (head, modifiers).
@@ -338,7 +351,7 @@ CUE_LEXICON: dict[str, str] = {
 NEGATORS = {"not", "no", "never", "down", "failed", "unavailable", "offline", "without", "nothing", "cannot", "isnt", "isn't", "dont", "don't", "wont", "won't", "nor", "neither"}
 COPULA = {"is", "are", "am", "was", "were", "be", "been", "being", "seems", "looks", "remains", "stays", "gets", "got", "become", "became"}
 AUXILIARIES = {"do", "does", "did", "has", "have", "had", "will", "would", "can", "could", "may", "might", "must", "shall", "should"}
-DETERMINERS = {"a", "an", "the", "this", "that", "these", "those", "its", "our", "their", "my", "your", "his", "her", "some", "any", "each"}
+DETERMINERS = {"a", "an", "the", "some", "any", "each"}
 # pronoun -> (head, deictic modifier)
 PRONOUNS = {"we": ("GROUP", "SELF"), "i": ("AGENT", "SELF"), "me": ("AGENT", "SELF"), "us": ("GROUP", "SELF"),
             "you": ("AGENT", "ADDRESSEE"), "they": ("GROUP", "THAT"), "them": ("GROUP", "THAT"),
@@ -357,7 +370,12 @@ PREPOSITION_ROLE: dict[str, str] = {
 }
 # words that turn a LOC role into a TIME role when they head the object
 TIME_WORDS = {"time", "hour", "day", "week", "month", "year", "moment", "window", "morning", "night", "noon", "midnight",
-              "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "today", "tomorrow", "yesterday"}
+              "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "today", "tomorrow", "yesterday",
+              "january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december",
+              "evening", "afternoon", "weekend", "hours", "days", "weeks", "minutes", "seconds", "months", "years"}
+CALENDAR_NAMES = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+                  "january", "february", "march", "april", "june", "july", "august", "september", "october", "november", "december"}
+_CLOCK12 = re.compile(r"^(\d{1,2})(?::(\d{2}))?(am|pm)$")
 # comparatives: phrase -> relational primitive
 COMPARATIVES = {"more": "GREATER", "greater": "GREATER", "higher": "GREATER", "above": "GREATER", "over": "GREATER",
                 "exceeds": "GREATER", "bigger": "GREATER", "larger": "GREATER", "longer": "GREATER",
@@ -395,6 +413,19 @@ CONNECTIVES = {
     "when": "CONDITION", "whenever": "CONDITION", "and": "AND", "but": "AND", "then": "AND", "or": "OR",
 }
 FILLERS = {"very", "just", "really", "quite", "also", "too", "there", "here", "yet", "even", "already", "that", "whom", "of", "back", "out", "off", "away"}
+
+INTERJECTIONS: dict[str, tuple[str, list[str]]] = {
+    "hi": ("SIGN", ["ACKNOWLEDGE", "ADDRESSEE", "BEGIN"]), "hello": ("SIGN", ["ACKNOWLEDGE", "ADDRESSEE", "BEGIN"]),
+    "hey": ("SIGN", ["ACKNOWLEDGE", "ADDRESSEE", "BEGIN"]), "greetings": ("SIGN", ["ACKNOWLEDGE", "ADDRESSEE", "BEGIN"]),
+    "bye": ("SIGN", ["ACKNOWLEDGE", "ADDRESSEE", "END"]), "goodbye": ("SIGN", ["ACKNOWLEDGE", "ADDRESSEE", "END"]),
+    "thanks": ("SIGN", ["ACKNOWLEDGE", "BENEFIT", "ADDRESSEE"]), "thank": ("SIGN", ["ACKNOWLEDGE", "BENEFIT", "ADDRESSEE"]),
+    "sorry": ("SIGN", ["ACKNOWLEDGE", "SADNESS", "SELF"]), "yes": ("SIGN", ["ACKNOWLEDGE", "AFFIRM"]),
+    "yeah": ("SIGN", ["ACKNOWLEDGE", "AFFIRM"]), "ok": ("SIGN", ["ACKNOWLEDGE", "AFFIRM"]), "okay": ("SIGN", ["ACKNOWLEDGE", "AFFIRM"]),
+    "no": ("SIGN", ["ACKNOWLEDGE", "NEGATE"]), "nope": ("SIGN", ["ACKNOWLEDGE", "NEGATE"]), "welcome": ("SIGN", ["ACKNOWLEDGE", "GOOD", "ADDRESSEE"]),
+    "congratulations": ("SIGN", ["ACKNOWLEDGE", "JOY", "ADDRESSEE"]), "help": ("SIGN", ["REQUEST", "BENEFIT"]),
+}
+POSSESSIVES = {"my": "SELF", "our": "SELF", "mine": "SELF", "your": "ADDRESSEE", "yours": "ADDRESSEE",
+               "his": "THAT", "her": "THAT", "their": "THAT", "its": "THAT", "theirs": "THAT"}
 
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?;])\s+(?=[A-Z0-9\"'(])")
 _WORD = re.compile(r"\d{4}-\d{2}-\d{2}(?:[Tt]\d{2}:\d{2}(?::\d{2})?[Zz]?)?|\d{1,2}:\d{2}|-?\d+(?:\.\d+)?[A-Za-z%°]*|[A-Za-z][A-Za-z0-9_'\-]*|[?]|,")
@@ -621,6 +652,7 @@ class Translator:
         after_copula = False
         after_verb = False
         negate_next = False
+        interjection_only = False
 
         def attach(mods: set, target: _NP) -> None:
             target.mods |= mods
@@ -634,6 +666,23 @@ class Translator:
         while i < len(toks):
             t = toks[i]
             i += 1
+            if t in INTERJECTIONS and (i == 1 or t in ("thanks", "thank", "sorry", "please", "welcome", "congratulations")) \
+                    and not (t == "no" and i < len(toks) and toks[i] not in (",", "?")) and t not in ("help",) or (t in INTERJECTIONS and len(toks) == 1):
+                consumed.append(t)
+                hd, mods = INTERJECTIONS[t]
+                if subject.empty():
+                    subject.head = pid(hd)
+                    subject.mods |= {pid(x) for x in mods}
+                    interjection_only = True
+                else:
+                    clause_mods |= {pid(x) for x in mods if x in ("ACKNOWLEDGE", "AFFIRM", "NEGATE", "BENEFIT", "SADNESS", "JOY")}
+                if t in ("thank", "thanks") and i < len(toks) and toks[i] == "you":
+                    consumed.append(toks[i]); i += 1
+                continue
+            if t in POSSESSIVES:
+                consumed.append(t)
+                pending_mods.add(pid(POSSESSIVES[t]))
+                continue
             if t in AUXILIARIES:
                 nxt = toks[i] if i < len(toks) else ""
                 if t in ("has", "have", "had") and nxt and nxt not in ("been", "not", "never", "to") and not nxt.endswith(("ed", "en")) \
@@ -672,6 +721,15 @@ class Translator:
                     continue
                 if t not in self.verbs:
                     continue
+            if interjection_only and (t in POSSESSIVES or t in PRONOUNS or t in DETERMINERS or self._lookup(t)):
+                # "Hi, my name is Sally": the greeting is its own utterance; hand the rest back
+                rest = toks[i - 1:]
+                greet = subject
+                sub, c2, u2 = self._parse_clause(rest)
+                consumed += c2
+                unconsumed += u2
+                greet.roles[inv.ROLES["ARG1"]] = sub
+                return greet, consumed, unconsumed
             if t in COPULA:
                 consumed.append(t)
                 if t in ("was", "were"):
@@ -684,6 +742,17 @@ class Translator:
                 role_target = None
                 continue
             # -- literals: numbers, dates, clock times --------------------------------
+            m12 = _CLOCK12.match(t)
+            if m12:
+                consumed.append(t)
+                h = int(m12.group(1)) % 12 + (12 if m12.group(3) == "pm" else 0)
+                t = f"{h:02d}:{m12.group(2) or '00'}"
+            if t in CALENDAR_NAMES:
+                consumed.append(t)
+                cur.names.append(t)
+                if cur.head is None:
+                    cur.head = pid("MOMENT")
+                continue
             mnum = _NUMBER.match(t)
             if _DATE.match(t) or _CLOCK.match(t):
                 consumed.append(t)
@@ -779,6 +848,8 @@ class Translator:
                 role = inv.ROLES[PREPOSITION_ROLE[t]]
                 nxt = toks[i] if i < len(toks) else ""
                 nxt2 = toks[i + 1] if i + 1 < len(toks) else ""
+                if t == "by" and (nxt in TIME_WORDS or nxt in CALENDAR_NAMES or _DATE.match(nxt) or _CLOCK.match(nxt) or _CLOCK12.match(nxt)):
+                    role = inv.ROLES["TIME"]
                 if role in (inv.ROLES["LOC"], inv.ROLES["PURPOSE"], inv.ROLES["SOURCE"]) and (
                         nxt in TIME_WORDS or nxt2 in TIME_WORDS or _DATE.match(nxt) or _CLOCK.match(nxt)
                         or (_NUMBER.match(nxt) and (nxt2 in TIME_WORDS or nxt2.rstrip("s") in TIME_WORDS))):
