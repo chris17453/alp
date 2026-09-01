@@ -194,7 +194,7 @@ def title_sequence(words: Sequence, title: str = "ALP", subtitle: str = "a writt
     from . import inventory as inv
     heads = [Composition(p) for p in inv.by_class(inv.CLASS_ONTOLOGICAL)]
     st = _fast(CharStyle(cell=int(size[0] / 14), frame=False, headline=False, theme=theme))
-    render_all = lambda: script.render_text([(h, True) for h in heads], st, width=size[0] - 40, margin=20, line_gap=0.2)
+    render_all = lambda: script.render_text([(h, True) for h in heads], st, width=size[0] - 40, margin=20, line_gap=0.2, align="center")
     # cumulative stroke budgets: heads are laid out left to right, so the k-th head's strokes follow the (k-1)-th's
     cum = [0.0] + [_count(lambda k=k: script.render_text([(h, True) for h in heads[:k]], st, width=size[0] - 40, margin=20, line_gap=0.2))
                    for k in range(1, len(heads) + 1)]
@@ -206,8 +206,10 @@ def title_sequence(words: Sequence, title: str = "ALP", subtitle: str = "a writt
     frames += [frames[-1]] * int(0.8 * fps)
     frames += _fade(frames[-1], black, int(0.4 * fps))
     # 3. the sentence
-    st2 = _fast(CharStyle(cell=int(size[1] / 5.2), frame=False, headline=True, theme=theme))
-    render = lambda: script.render_text(words, st2, width=size[0] - 80, margin=40, line_gap=0.35)
+    n_chars = sum(len(script.word_chars(w[0] if isinstance(w, tuple) else w)) for w in words if w is not None)
+    cell = int(min(size[1] / 3.4, (size[0] - 120) / max(1, n_chars + 1) / 1.25))
+    st2 = _fast(CharStyle(cell=max(72, cell), frame=False, headline=True, theme=theme))
+    render = lambda: script.render_text(words, st2, width=size[0] - 80, margin=40, line_gap=0.35, align="center")
     written = frames_for(render, seconds=max(3.0, 1.2 * sum(len(script.word_chars(w[0] if isinstance(w, tuple) else w)) for w in words if w is not None)), fps=fps, hold=0.3, lead=0.2)
     frames += [_fit(f, size, bg) for f in written]
     # 4. caption under it
@@ -229,7 +231,7 @@ def title_sequence(words: Sequence, title: str = "ALP", subtitle: str = "a writt
 # writers
 # ---------------------------------------------------------------------------
 
-def save_gif(frames: Sequence[Image.Image], path: str, fps: int = 24, max_width: int | None = 720, colors: int = 96) -> str:
+def save_gif(frames: Sequence[Image.Image], path: str, fps: int = 24, max_width: int | None = 560, colors: int = 64) -> str:
     fr = list(frames)
     if max_width and fr and fr[0].width > max_width:
         h = int(fr[0].height * max_width / fr[0].width)

@@ -1528,7 +1528,7 @@ Utterance = tuple  # (Composition, value) ; None = line break
 
 
 def render_text(words: Sequence[Utterance | Composition | None], st: CharStyle | None = None, width: int = 1200,
-                margin: int = 24, line_gap: float = 0.45, captions: bool = False) -> Image.Image:
+                margin: int = 24, line_gap: float = 0.45, captions: bool = False, align: str = "left") -> Image.Image:
     """Lay utterances out as running text.  ``None`` forces a line break.
     With ``captions`` the realizer's English is set under each word."""
     st = st or CharStyle()
@@ -1573,6 +1573,9 @@ def render_text(words: Sequence[Utterance | Composition | None], st: CharStyle |
     y = margin * S
     for line in lines:
         x = margin * S
+        if align == "center" and line:
+            lw = sum(word_width(c, hs, v) for c, v in line) + hs.word_gap * hs.cell * (len(line) - 1)
+            x = max(margin * S, (width * S - lw) / 2)
         for comp, value in line:
             x0 = x
             x = draw_word(d, comp, x, y, hs, value)
