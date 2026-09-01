@@ -182,7 +182,9 @@ class CharStyle:
     headline: bool = True          # a line along the top joining the characters of a word (Devanagari style)
     color: bool = True             # modifier classes in their colours; the head in ink
     supersample: int = 4           # render at N× and downsample: soft, blended edges
-    blend: float = 0.94            # ink opacity per stroke; crossings darken a little
+    blend: float = 0.80            # ink opacity of a stroke's core; halo and body are lighter
+    grain: float = 0.07            # paper grain / dither strength (0 = none)
+    feather: float = 1.0           # edge softness multiplier
     pressure: bool = True          # brush pressure profiles and a slight bow on long strokes
     grid: bool = False             # faint grid (design aid)
 
@@ -227,7 +229,7 @@ class _Pen:
         return self.ox + x * self.u, self.oy + y * self.u
 
     # -- compositing ---------------------------------------------------------
-    def _fill(self, pts: list[tuple[float, float]], ink) -> None:
+    def _fill(self, pts: list[tuple[float, float]], ink, alpha: float | None = None) -> None:
         if self.img is None or len(pts) < 3:
             self.d.polygon(pts, fill=ink)
             return
@@ -239,18 +241,22 @@ class _Pen:
         if x1 <= x0 or y1 <= y0:
             return
         layer = Image.new("RGBA", (x1 - x0, y1 - y0), (0, 0, 0, 0))
-        a = int(255 * self.st.blend)
+        a = int(255 * min(1.0, self.st.blend if alpha is None else alpha))
         col = (ink[0], ink[1], ink[2], a) if isinstance(ink, tuple) else ink
         ImageDraw.Draw(layer).polygon([(x - x0, y - y0) for x, y in pts], fill=col)
         self.img.alpha_composite(layer, (x0, y0))
 
     def _disc(self, X: float, Y: float, r: float, ink) -> None:
-        n = 20
-        self._fill([(X + r * math.cos(2 * math.pi * i / n), Y + r * math.sin(2 * math.pi * i / n)) for i in range(n)], ink)
-
-    def _band(self, pts: list[tuple[float, float]], half: list[float], ink) -> None:
-        if len(pts) < 2:
+        n = 24
+        ring = lambda rr: [(X + rr * math.cos(2 * math.pi * i / n), Y + rr * math.sin(2 * math.pi * i / n)) for i in range(n)]
+        if self.img is None:
+            self._fill(ring(r), ink)
             return
+        a = self.st.blend
+        for mult, alpha in ((1.45, a * 0.14), (1.1, a * 0.5), (0.65, a * 1.0)):
+            self._fill(ring(r * mult), ink, alpha)
+
+    def _outline(self, pts, half):
         left, right = [], []
         for i, (x, y) in enumerate(pts):
             if i == 0:
@@ -263,7 +269,19 @@ class _Pen:
             nx, ny = -dy / L * half[i], dx / L * half[i]
             left.append((x + nx, y + ny))
             right.append((x - nx, y - ny))
-        self._fill(left + right[::-1], ink)
+        return left + right[::-1]
+
+    def _band(self, pts: list[tuple[float, float]], half: list[float], ink) -> None:
+        """A stroke as ink: a wide faint halo, the body, and a dense core, so
+        density falls off across the stroke and the edge is soft."""
+        if len(pts) < 2:
+            return
+        if self.img is None:
+            self.d.polygon(self._outline(pts, half), fill=ink)
+            return
+        a = self.st.blend
+        for mult, alpha in ((1.5, a * 0.14), (1.12, a * 0.5), (0.62, a * 1.0)):
+            self._fill(self._outline(pts, [h * mult for h in half]), ink, alpha)
 
     # -- pressure profiles: half-width as a fraction of w along t in 0..1 ---------
     @staticmethod
@@ -1320,13 +1338,27 @@ def _canvas(w: int, h: int, bg) -> tuple[Image.Image, ImageDraw.ImageDraw]:
     return img, ImageDraw.Draw(img)
 
 
-def _down(img: Image.Image, S: int) -> Image.Image:
-    """Downsample with a light blur first: soft, ink-on-paper edges."""
-    from PIL import ImageFilter
+def _down(img: Image.Image, S: int, st: "CharStyle | None" = None) -> Image.Image:
+    """Feather, downsample, and lay paper grain over the ink."""
+    from PIL import ImageFilter, ImageChops
+    import random
+    feather = (st.feather if st else 1.0)
+    grain = (st.grain if st else 0.07)
     out = img.convert("RGB")
+    if S > 1 and feather > 0:
+        out = out.filter(ImageFilter.GaussianBlur(radius=S * 0.7 * feather))
     if S > 1:
-        out = out.filter(ImageFilter.GaussianBlur(radius=S * 0.45))
         out = out.resize((max(1, img.width // S), max(1, img.height // S)), Image.LANCZOS)
+    if grain > 0:
+        rnd = random.Random(7)
+        w, h = out.size
+        noise = Image.effect_noise((w, h), 64).convert("L")
+        # centre the noise on 128 and scale it to the grain strength
+        lut = [int(128 + (v - 128) * grain * 2.2) for v in range(256)]
+        noise = noise.point(lut)
+        gray = Image.merge("RGB", (noise, noise, noise))
+        # multiply-ish: soft light around mid grey so both dark and light inks pick up texture
+        out = ImageChops.overlay(out, gray)
     return out
 
 
@@ -1336,7 +1368,7 @@ def render_word(comp: Composition, st: CharStyle | None = None, value: Any = Tru
     C = THEMES[st.theme]
     img, d = _canvas(word_width(comp, hs, value), hs.cell, C["bg"])
     draw_word(d, comp, 0, 0, hs, value)
-    return _down(img, S)
+    return _down(img, S, st)
 
 
 def render_char(comp: Composition, st: CharStyle | None = None) -> Image.Image:
@@ -1345,7 +1377,7 @@ def render_char(comp: Composition, st: CharStyle | None = None) -> Image.Image:
     C = THEMES[st.theme]
     img, d = _canvas(hs.cell, hs.cell, C["bg"])
     draw_char(d, comp, 0, 0, hs)
-    return _down(img, S)
+    return _down(img, S, st)
 
 
 Utterance = tuple  # (Composition, value) ; None = line break
@@ -1390,7 +1422,7 @@ def render_text(words: Sequence[Utterance | Composition | None], st: CharStyle |
         for comp, value in line:
             x = draw_word(d, comp, x, y, hs, value) + hs.word_gap * hs.cell
         y += line_h * S
-    return _down(img, S)
+    return _down(img, S, st)
 
 
 def render_key(st: CharStyle | None = None, font=None) -> Image.Image:
@@ -1459,7 +1491,7 @@ def render_key(st: CharStyle | None = None, font=None) -> Image.Image:
                 d.text((x0 + cell + 12 * S, y + 26 * S), inv.SENSES[p][:44], font=font, fill=C["dim"])
                 d.text((x0 + cell + 12 * S, y + 44 * S), f"U+{0xE000 + p.code:04X}", font=font, fill=C["dim"])
                 y += line
-    return _down(img, S)
+    return _down(img, S, st)
 
 
 def render_chart(st: CharStyle | None = None) -> Image.Image:
