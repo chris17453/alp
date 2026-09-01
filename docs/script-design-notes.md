@@ -159,6 +159,21 @@ structural crutch.
 
 ---
 
+## Status
+
+Done in `script.py` (commit history has the steps): modulated stroke set
+(heng/shu/pie/na/dian, horizontal:vertical ≈ 0.78, minimum weight 1/22 em);
+structure selection — bands exist only for present components and the head
+takes the largest remaining square; attachment — crown, ground, radical and
+connector are sized from and placed on the head/enclosure edge; ink budget
+(6 components) with a fixed compound split (head-shaping marks in the first
+character, surroundings and role row in the second, head shown as a seed);
+inner marks scale with the head; word headline.
+
+Open: curved heads (9), radical-position variant (7), demoting the headline
+(10), and the literal characters (numerals, units) which still use the old
+form alphabet.
+
 ## Order of work
 
 1. Stroke set with modulation (4) — everything else is drawn with it.
